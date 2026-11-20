@@ -1,0 +1,1297 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>SolPrende en 3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Pitch en 3D: la escena es el fondo; a la izquierda quién presenta y qué dice, a la derecha los datos y gráficos de la lámina. Aspecto único (claro). */
+:root{--noche:#0B2650;--azul:#0166B0;--azul2:#014C88;--sol:#F5B404;--ahorro:#3E7D10;--verde:#63B523;--red:#6DB3E8;--fondo:#F5F8FB;--blanco:#FFFFFF;--ink2:#4A5F74;--borde:#C3D1DF;--claro:#E7EEF5;--tinteA:#DCEAF6;--tinteV:#E7F3DA;--tinteS:#FFF2CC;color-scheme:light;padding:0!important}
+html,body{height:100%;margin:0;overflow:hidden;background:var(--fondo);color:var(--noche);font-family:"Public Sans",system-ui,sans-serif}
+[hidden]{display:none!important}
+#stage{position:fixed;inset:0;width:100%;height:100%;display:block;outline:none;touch-action:none;cursor:grab}
+#stage.pick{cursor:pointer}
+#fade{position:fixed;inset:0;background:var(--fondo);opacity:0;pointer-events:none;transition:opacity .32s}
+#fade.on{opacity:1}
+.load{position:fixed;inset:0;display:grid;place-items:center;background:var(--fondo);font:600 18px "Sora",system-ui,sans-serif;transition:opacity .4s;z-index:9;text-align:center;padding:24px}
+body.ready .load{opacity:0;pointer-events:none}
+#labels,#tags{position:fixed;inset:0;pointer-events:none;overflow:hidden}
+.lb{position:absolute;left:0;top:0;width:0;height:0}
+.lb i{position:absolute;left:-5px;top:-5px;width:10px;height:10px;border-radius:50%;background:var(--noche);box-shadow:0 0 0 3px rgba(255,255,255,.9)}
+.lb s{position:absolute;left:0;top:-1px;height:2px;background:var(--noche);transform-origin:0 50%;opacity:.55}
+.lb button{position:absolute;transform:translate(-50%,-50%);pointer-events:auto;white-space:nowrap;border:1.5px solid var(--noche);background:var(--blanco);color:var(--noche);font:600 14px/18px "Public Sans",sans-serif;border-radius:999px;padding:6px 12px;cursor:pointer;box-shadow:0 4px 12px rgba(11,38,80,.16)}
+.lb button small{display:none}.lb.sel button small{display:block;white-space:normal;width:250px;margin-top:3px;font-weight:400;font-size:13px;line-height:17px}
+.lb button:hover,.lb.sel button{background:var(--noche);color:var(--blanco)}
+.tg{position:absolute;left:0;top:0;transform:translate(-50%,-50%);white-space:nowrap;font:500 13px "IBM Plex Mono",monospace;color:var(--noche);background:rgba(255,255,255,.92);border:1px solid var(--borde);border-radius:6px;padding:3px 8px}
+.tg.ax{background:none;border:0;color:var(--ink2);padding:0}
+.tg.big.fx{font-size:19px;line-height:24px;padding:8px 14px;border-radius:8px}
+.tg.big{font:700 15px "Sora",sans-serif;background:var(--noche);color:var(--blanco);border-color:var(--noche);padding:5px 10px}
+/* columnas laterales */
+.side{position:fixed;top:calc(12px + env(safe-area-inset-top,0px));max-height:calc(100% - 118px);overflow:auto;box-sizing:border-box;background:var(--blanco);border:1px solid var(--borde);border-radius:14px;box-shadow:0 14px 34px rgba(11,38,80,.16);transition:opacity .3s;scrollbar-width:thin}
+.guion{left:16px;width:auto;padding:12px 18px 12px 14px;display:flex;flex-direction:column;gap:10px}
+#num,#say,#rowsH,#rows{display:none!important}   /* en pantalla solo se ve quién presenta; el guion queda en el Word */
+.who{display:flex;align-items:center;gap:10px}
+.who b{flex:none;width:40px;height:40px;border-radius:50%;background:var(--azul);color:var(--blanco);display:grid;place-items:center;font:700 16px "Sora",sans-serif}
+.who small{display:block;font-size:11.5px;color:var(--ink2);letter-spacing:.06em;text-transform:uppercase}
+.who strong{font:700 17px/1.2 "Sora",sans-serif}
+.when{font:500 12px "IBM Plex Mono",monospace;color:var(--ink2);border-top:1px solid var(--claro);padding-top:8px}
+.guion ul{margin:0;padding:0 0 0 18px;display:flex;flex-direction:column;gap:7px;font-size:14.5px;line-height:1.42}
+.guion h3{margin:2px 0 0;font:600 11.5px "Public Sans",sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--ink2)}
+.rows{display:flex;flex-direction:column;gap:2px}
+.row{all:unset;box-sizing:border-box;width:100%;cursor:pointer;border-radius:8px;padding:5px 8px;font-size:13px;line-height:1.35;color:var(--ink2)}
+.row b{display:block;color:var(--noche);font-weight:600;font-size:13.5px}
+.row:hover,.row.sel{background:var(--claro)}
+.row.sel{box-shadow:inset 3px 0 0 var(--azul)}
+.datos{right:16px;width:clamp(400px,38vw,760px);padding:16px 18px;display:flex;flex-direction:column;gap:10px}
+body.clean .side,body.noguion .side{opacity:0;pointer-events:none}
+/* piezas del panel de datos */
+.d h2{margin:0;font:700 21px/1.2 "Sora",sans-serif;letter-spacing:-.01em}
+.d p{margin:0}
+.eye{font:600 12px "Public Sans",sans-serif;letter-spacing:.07em;text-transform:uppercase;color:var(--ink2)}
+.num{font-family:"IBM Plex Mono",monospace;font-weight:500}
+.foot{font-size:12px;line-height:1.4;color:var(--ink2);border-top:1px solid var(--claro);padding-top:8px}
+.card{background:var(--blanco);border:1px solid var(--borde);border-radius:10px;padding:10px 13px;display:flex;flex-direction:column;gap:4px}
+.card h3{margin:0;font:700 15.5px "Sora",sans-serif}
+.card p{font-size:13.5px;line-height:1.4;color:var(--ink2)}
+.stack{display:flex;flex-direction:column;gap:8px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.ix{display:flex;gap:12px;align-items:flex-start}
+.ix .num{white-space:nowrap}
+.ix .n{flex:none;font:500 22px "IBM Plex Mono",monospace;color:var(--azul)}
+.ix .c{flex:none;width:30px;height:30px;border-radius:50%;background:var(--azul);color:var(--blanco);display:grid;place-items:center;font:500 15px "IBM Plex Mono",monospace}
+.band{display:flex;align-items:center;gap:14px;border-radius:10px;padding:12px 16px;background:var(--tinteA)}
+.band .num{font-size:34px;color:var(--azul2);line-height:1}
+.band p{font-size:13.5px;line-height:1.4}
+.warn{background:var(--tinteS);border-radius:8px;padding:9px 12px;font-size:13px;line-height:1.4}
+.ok{background:var(--tinteV);border-radius:8px;padding:9px 12px;font-size:13px;line-height:1.4}
+.dark{background:var(--noche);color:var(--blanco);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.dark .eye{color:#F5B404}
+.dark p{color:#C9D8E6}
+.kpi{display:flex;flex-direction:column;gap:2px}
+.kpi .num{font-size:30px;line-height:1.1;color:var(--noche)}
+.kpi .k{font:700 12px "Public Sans",sans-serif;letter-spacing:.06em;text-transform:uppercase}
+.kpi p{font-size:13.5px;line-height:1.35;color:var(--noche)}
+/* gráfico de barras del edificio tipo */
+.bars{display:flex;gap:14px;height:150px;align-items:flex-end;border-bottom:1px solid #3E5F80;padding-top:6px}
+.bars>div{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:6px;height:100%}
+.bars .v{font:500 14px "IBM Plex Mono",monospace;color:var(--blanco)}
+.bars .v.g{color:var(--verde)}
+.bars i{display:block;width:62%;border-radius:4px 4px 0 0;height:0;transition:height 1.1s cubic-bezier(.2,.8,.2,1)}
+.bars .neg{border-radius:4px}
+.blab{display:flex;gap:14px}
+.blab p{flex:1;text-align:center;font-size:12.5px;line-height:1.25;color:#C9D8E6}
+.tot{display:flex;justify-content:space-between;align-items:baseline;border-top:1px solid #22406E;padding-top:8px}
+.tot .num{font-size:24px;color:var(--verde)}
+/* personas y mapa de empatía */
+.per{display:flex;gap:12px;align-items:flex-start}
+.per b{flex:none;width:40px;height:40px;border-radius:50%;background:var(--tinteA);display:grid;place-items:center;font:700 14px "Sora",sans-serif}
+/* canvas */
+.cv{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.cv div{background:var(--blanco);border:1px solid var(--borde);border-radius:8px;padding:8px 10px;font-size:12px;line-height:1.35;color:var(--noche)}
+.cv h4{margin:0 0 3px;font:700 12px "Public Sans",sans-serif;color:var(--azul)}
+.cv .vp{grid-column:1/-1;background:var(--azul);border-color:var(--azul);color:var(--blanco)}
+.cv .vp h4{color:var(--blanco)}
+.cv .cost{background:var(--claro)}
+.cv .ing{grid-column:span 2;background:var(--tinteV)}
+.cv .ing h4{color:var(--ahorro)}
+/* ingresos */
+.leg{display:flex;flex-direction:column;gap:6px}
+.leg div{display:flex;align-items:center;gap:10px;font-size:13.5px}
+.leg i{flex:none;width:14px;height:14px;border-radius:3px}
+.leg .num{margin-left:auto;font-size:14px}
+/* tabla de iteraciones */
+.it{display:flex;flex-direction:column;gap:6px}
+.it.two{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px}
+.it div{display:grid;grid-template-columns:1fr 18px 1fr;gap:6px;align-items:start;font-size:13px;line-height:1.35;border-bottom:1px solid var(--claro);padding-bottom:6px}
+.it s{color:var(--ink2);text-decoration-color:rgba(74,95,116,.5)}
+.it b{font-weight:600}
+.it em{grid-column:1/-1;font-style:normal;font-size:12px;color:var(--ink2)}
+/* mercado */
+.mk{display:flex;flex-direction:column;gap:6px}
+.mk div{display:grid;grid-template-columns:52px 1fr auto;gap:4px 10px;align-items:baseline;border-radius:8px;padding:8px 10px;background:var(--claro)}
+.mk .t{font:700 13px "Sora",sans-serif}
+.mk .num{font-size:20px;text-align:right}
+.mk p{grid-column:2/-1;font-size:12px;line-height:1.35;color:var(--ink2)}
+.mk .sam{background:var(--tinteA)}
+.mk .som{background:var(--tinteS)}
+.fun{display:flex;flex-direction:column;gap:4px}
+.fun div{display:grid;grid-template-columns:104px 1fr 72px;gap:8px;align-items:center;font-size:12.5px}
+.fun i{display:block;height:14px;border-radius:3px;background:var(--azul);width:0;transition:width 1s cubic-bezier(.2,.8,.2,1)}
+.fun .num{font-size:12.5px;text-align:right}
+.rm{display:flex;flex-direction:column;gap:6px;border-left:2px solid var(--azul);margin-left:12px;padding-left:2px}
+.rm>div{display:flex;gap:10px;align-items:flex-start;margin-left:-15px}
+.rm>div>b{flex:none;width:26px;height:26px;border-radius:50%;background:var(--azul);color:var(--blanco);display:grid;place-items:center;font:500 13px "IBM Plex Mono",monospace;box-shadow:0 0 0 3px var(--blanco)}
+.rm h3{margin:0;font:700 14px "Sora",sans-serif}
+.rm p{font-size:12.5px;line-height:1.35;color:var(--noche)}
+.rm span{display:block;font-size:12px;color:var(--ahorro);font-weight:600}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--borde);border-radius:999px;padding:4px 10px;font-size:12.5px}
+.chip b{font:600 11px "Public Sans",sans-serif;letter-spacing:.05em;text-transform:uppercase;color:#8A5A00;background:var(--tinteS);border-radius:999px;padding:2px 7px}
+.hero{font:700 28px/1.12 "Sora",sans-serif!important;letter-spacing:-.015em}
+.hero em{font-style:normal;color:var(--ahorro)}
+.team{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.team span{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600}
+.team b{width:28px;height:28px;border-radius:50%;background:var(--azul);color:var(--blanco);display:grid;place-items:center;font:700 12px "Sora",sans-serif}
+.q{font:600 16px/1.4 "Sora",sans-serif;border-left:3px solid var(--azul);padding-left:12px}
+/* barra inferior */
+.float{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(104px + env(safe-area-inset-bottom,0px));display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:center;width:min(980px,calc(100% - 32px));pointer-events:none}
+.float>*{pointer-events:auto}
+.seg{display:inline-flex;background:var(--blanco);border:1px solid var(--borde);border-radius:999px;padding:4px;gap:4px;box-shadow:0 6px 16px rgba(11,38,80,.14)}
+.seg button{border:0;background:transparent;color:var(--noche);font:600 14px "Public Sans",sans-serif;border-radius:999px;padding:8px 16px;cursor:pointer;min-height:36px}
+.seg button[aria-pressed=true]{background:var(--noche);color:var(--blanco)}
+.legend{display:inline-flex;gap:16px;background:rgba(255,255,255,.92);border:1px solid var(--borde);border-radius:999px;padding:8px 16px;font-size:13.5px;font-weight:500}
+.legend b{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:7px}
+.read{font:500 12.5px "IBM Plex Mono",monospace;background:rgba(255,255,255,.92);border:1px solid var(--borde);border-radius:999px;padding:8px 16px}
+.bar{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);width:min(1120px,calc(100% - 32px));box-sizing:border-box;background:var(--noche);color:var(--blanco);border-radius:18px;padding:12px 14px;display:flex;align-items:center;gap:12px;box-shadow:0 18px 40px rgba(11,38,80,.28);transition:opacity .3s}
+body.clean .bar,body.clean .float{opacity:0;pointer-events:none}
+.txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+#ttl{font:700 19px/1.2 "Sora",sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#sub{font-size:13px;line-height:1.35;color:#C9D8E6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dots{display:flex;gap:5px}
+.dot{width:30px;height:30px;border-radius:50%;border:1.5px solid rgba(255,255,255,.35);background:transparent;color:var(--blanco);font:600 12.5px "Public Sans",sans-serif;cursor:pointer;padding:0}
+.dot.gap{margin-left:7px}
+.dot[aria-current=step]{background:var(--sol);border-color:var(--sol);color:var(--noche)}
+.btn{min-width:44px;height:44px;border-radius:12px;border:0;background:rgba(255,255,255,.12);color:var(--blanco);font:600 15px "Public Sans",sans-serif;cursor:pointer;padding:0 14px;flex:none}
+.btn:hover{background:rgba(255,255,255,.22)}
+.btn:disabled{opacity:.35;cursor:default}
+.btn.next{background:var(--blanco);color:var(--noche)}
+button:focus-visible{outline:2px solid var(--sol);outline-offset:2px}
+@media(max-width:1180px){.dots{display:none}}
+@media(max-height:900px){.datos{gap:7px;padding:12px 14px}.d h2{font-size:18px}.card{padding:7px 10px}.card p,.it div,.cv div,.rm p,.mk p{font-size:11.5px}.bars{height:100px}.q{font-size:14px}.hero{font-size:23px!important}.card img{max-height:84px;object-fit:contain}.ok,.warn{padding:6px 10px;font-size:12px}.foot{font-size:11px}.guion ul{font-size:13.5px}}
+@media(max-width:820px){.guion{display:none}.datos{left:16px;right:16px;width:auto;max-height:42vh}#ttl{font-size:17px}.btn.opt{display:none}.bar{gap:10px}.float{bottom:calc(96px + env(safe-area-inset-bottom,0px))}}
+:root{--logo-claro:url(data:image/webp;base64,UklGRipoAABXRUJQVlA4WAoAAAAQAAAALwIAkAAAQUxQSMotAAAB/yckSPD/eGtEpO4TkgS4jRsJBaJ7FqL//2Ap6f0e0f8J0L3+5kek1qPvHmml7ydOPcn3mF6iOaYFHu36U1o/Ic5E1x75KvYT7QPvSrZ1B47dLZIQEiC15YALSDMzF/AiKQH+SAPkMkDsqQYSu538nQHsGUg6Hj1/SWyRB1IO9a0QeyS7I8WeHrYNAshFEoltU98l3zlty6dk2wBNnAAIckxEbUfolmiON+fYZ8Z2ACKSQAhISgKdUWBGFzpj2zniWwJj55hI4rFOgBkJGO3aBmZ3b/KuvHtoNzp0hwA+3t2W5/WxddtKyj/oh2j3a/g2w8zHfM12W8Sp79zy+PcDNmzblsltcz3P+83uSlqRZUmWZAbZipkZEkNN4cQUZnaYmdqGGVs3DaPt1uHEDDHJJDNIBtliXMFqd773vX/MfO98M9IRe/MrIiaArdh08CdmXf6fG038a6THfb8Ap3y/z+xfJExvoBnsZfulf5UQ0xQQE/nXyWafAMf+ZcL410z9q0EI3q26zYOP0RGjtorEWH3j/H8/Bes9UTzvIyfbGJz5t0d/8YEDqNvaRNSZeXG+lL7dsLE2Z8+Nbx0l3YPV02okOpdtuY2yKZ2Gj7ntvXkcgaWPotpQWQd/WUdUqbcRxtjMip+PkxlLVmC1RetM/uD8IKU4ehw+xoYxeXdAPLnZrR5ZDbLmJYBKfZvAmLsxfQaGeIiiHlDsjKtXuYi6e7rZ2BuBGdsLTK8h1LT5ADxP4cGbLWFx5HicsfldBmXJNx6Ld6akOPysTkgXAyZ9lsBY/a6eDC3aFcsz/mgNuLzPLMu5bpkL48ZxbmN27AiUunq8WVa0373/7RNu2xMjOyy8zhKW9j0IZ6zeUt+OmEo9j5CF+PK0SY9jZAcuEZgmnk5g7N40YQ4jI7qgytzdAF+NO9luOz8eEnBGv9sYHjB7tnTnDDPMQ2HkJrwIblV8BeHpgD2TM8YfPvfxXXAPtI6bfdAJ4ydgo5vWLRugNbi1u4SSOOUUjDF+AyhKaOy638EH7DZjUn+gdWT9kocfWnD7I0BIIsQ3SklXNLweG0sjBDUZPOK0E/eeSlshDKN17d1/vnw+hATjvr9x89VzMTq3YBZs7CwAB5z33P2AJMww2goJcxi5+peXrSUosd+hDYzOnTF1N+yM1582ASUzo0YlAjz03z9dRjDA6NgCXPCHqz48HhsLswCn/+1UiObUr0Tg0W/9z/oQ3Og4wH6XSNIPxsQcDvyVpORGl5MCC94NTqduTPnEKsWyGTfuifeUmbu1k9lYSWDgY2uUykAvJoXRL44n5FmAFy2QSimVm/bpITN3I9/czMY8zDn4BqmU6NHkumEuISfAPr+SyiTFUpcVRo+6A9icg06bMQ5P60fW7TOJVncb2xBvPIfoBe0FQi2GYXWgkh1nYxVuTHjhc5AZKUqXzqZHXJGB3Y8+ZHdXs4+2m1ctX/bYglseHgaXthWGrEpPs0zYNslke00i9gFIwpz8lMytI8zYbipqY/C8c6aTHCXpxueC0Yum1Lf3aaf301YCzGi7+uE//P2+jbi0bRCo6umyG0JCoG0SAzOIXoASASBtXr1u3QbJxk+dvP0kA4jmHYDhDVqN3X4poqMUeOTNA5jRg0ayk86dByhhhtFWSLjB8E1/vvQRXNsCa5iXyfqIeBp9mpREq1GERtgW9U+FPpQsOKOP3nPfg4uWD23ekgDGDUyeM3ef/Q6eBUS3vNYhAmZT5qs0IwXW/mYHCPRk4oB3T4eEudO5hMMjl/5gIb7Vmd7zwqaD3Iyw6nXY0yDXc49vTJ48vuFFKm94P2GbowKhVDgrb/77NYs20N4A0X6HeSecdZiR8E42PIk7x6lMJCdd9tNlBKMXjcarnw/RA7VLOIu++HPctjI47FgyN4x/WmTp3J2ptMP33NbIRpuQFHz91ZfeBWCOBAjAwIwINI5+3gt3J+FZYulkDxzcjKMYf/2f+wlGT4r+zwwSvaC7SYGrT2HrH04xtJNtTDw93tKIAQyIaRRtU8xHViCcR392GWAuiTrNibD9Oa89lOiWgfgebsVFEjd//1pcokeL6SQadD/hGz49aatzd68KPE0OZLpvYzwtQc7937gJzFNK1G9mkf7zPjiPGHI8nkFB4xXfvOgvGIke9ZFILIyejNJXfWvLl54mWc621nl+M+rRd0yGoETXzSN/uGQjqArpnsnmtAZ61uIHiX30aqnP2bbkGV9j7lPa8s3ZEJJob2BgFQIBagPmrP6/W/AMSr2PYCEEo2ctnn6gAh1KamOYdRB1+bTCtjLL0tMlbbPc/qQbT4BgAG4giVrNDJBQCtx5QzJVxbR4phm9bJr4DmKe5GZUJ8wyklYdQYNnXrdZzrv02UHcsIASbfvHD04Z39ffF8xoxpGRkfUbhrc0qfQQ3MuHhqhW1AcJvZVeGFNBbgrGY4uWrE9qTN1h1x0LiOYV0T+Fs03V06T8tA0xnnXTmVCEYACNXXbbfY+dZuwwafxAwwPtFcuRkU0bV61evWzVEyuWLxlJsWwGFq1AVem+SVgvaeDFRM8QYeX//37ztKERIIybuesBZx02mdQuceN0s23L03Fh2w47aS8aBcDOZx5y0Lw5k8mU2hhGbnPj8ke+9sZTtsdZuokKRb2I0EMejwkKZBoXfx/AASRg/IEveuEeIBArjsTYttrTJM8yfJvRWsDA0R+7apUAlGQGBhjtBSAQwh04+10/+OZcjFRUlfo51kNwBMkzUvrkY5iRaGsGCXa54A24SLx9VmAbq6dJsYNtpwfwo/7jnlJSTGZmdFtIMUZ2nISYMBVrE/XEDKxnLDYOE1aViu+tMU+JbAOx599Hifx90ndtW/P0WHSqbYRTaqcXnSOgdAv0bAgBQgHMmpoMwLXjMXjsFdhunhmV8ifnmVOjOX7eQ3rqIJxtrPnTIggdbBvNm+z/umOBaNag1w1Ggd0nyACSHUHvGoNTyUhcMxCo141dLnotRpfNDASGkHqi62bWRlJPmZlUk5m1k9RbZtYiqSfMrI2kqh41s3aSuhdI+79vLpRuBVujGF5G4mjawCGWALes4FYPNAbIfpy6wDE3umlmSWQ7Ug+5oRYDYju3lKQ2EILX497OFLydWxKABevEHCUy3Uiqw00tBrKkNm6KUgu4WZfMLYnqgFKvWCCJTHOsK+7Mef+REL3B1vvUYyHOOI5WY+dJMlmiU6upr8gLeG0YXTVLwIxdZm03aZw1V29Y8+TSjeBS11SRyDaBU4oddt55sJ/Na5c/uQwsWA2dW4iEWTMmjSwv6NAtgs+aOWu7wSKODj315JImBKXOEK0CRKtTyneaOWfQR9c8tWIVBO+CBYCZO+w8pT8Nr1mychm4g6Esq8MDYLNm7TRpnMct655asawJwesL8KYlEL1gKxY3D4V0zB6pzYw5mOmQk1Ha0kyxWcILDzfqtrzd+txqw7pgDo2Djt/3gH0Gad9c9uCCG69Yi3m3KovDJ5aYEYyUbl+LeZP9zjxxxghtt6y868MHAqEDY9zxp5oTk1ynHllAgH1fctLekwfK9dd/bJZluMN2R5x0+N7bjaNtc+0jt1x37SqCOpq7R9NkWEC6e4kRRjn4zJMmjdI6tHr+NbtDYXUFKI4/5bD9t5tA68ZVC677wwMpGKSsGt1h6tnHH7b3tAHaDq9bOP/a7SF4PRaY+39SGQq2buPPyF7tsWXqDoTmuf89SK5GfjMRqyWWOc6/HUqor4sOU85+5SHTAEmAmQHp7qt/fAduXVEbb4z7n33IPPnKRjMe987ZAEmAOWjjn8/pwy3L2XujqNQjU2iw43dfNom20mcI7ayAg15z9u4ASS3mAI/9/kd3UFhW4HunFhitZj/+ZWM0HvXeWQBJmBmw8r8OAq8lGFPfdEMZgCQwM2Dtpc+KCnTVGnDAlx8WQFKLOcCiLz8LCqvBjPNXqxn72NoVHr8+NA85zQXJtyMOfHhwNLSxlpj0FkINYtOGHEuTL5mEW4+Zs93r5x9iJJkZ7SUUYM1vDgHvhlmLRptNJa9Q6c3tPzUPIk6gVVIp6YazIOTttyHJ2ig9PK3B8xaL0q2l2TyjwuHAH22cgBKO0VZI5mz+1VfA876v5ACyGJxy6icPgNKcACAJaejjfXgNffS//iFJETOjVRKBGz89ftStC24c9KMhKSXDjLZCMmndt3cH68ixf5dKia0/celK482WAPpIjYnRAIy2aaT8Ui2wZjGqwpN+tRuYWw8ZnPQ3STKj46TA8o9OInShUuZmVuGNdMR/70/0gmylspR+Oosi66CNqtKiObypqWYwWpMWT8NaAhP/Y0iK5nScFFj3oYKQ9QPaG9AYOeTLEL1Bdiqlv+5E6Chw+FVSGUWHSpM+8beDUpEllBMY/OyQVEbRcSylFRcWhE7o24Vk9KJAoG6ITYcutIOHXUCgseEXHyNb0lm1mOw/jkheBbJHvvfrpyCQ1CMURx9NklOvEjNO2gl1DS/IvPzwtBPNwqgx4QvnoSqIRvVuN48bKuRGe+nXOICxywkTiW7U6R6ZcvxsrAqsonX9zt+kDAX5hnnJnPFYnolDDyOaU6PKxvJ/e8ubYgZZzrzTJhLdqdM9Mv20GXTaN5VkdFkScqcXf/Jqj3+1BGxB9tk3ndzw0Deuv3+gz23VoveYUadx3luURQwsvOz3C1aDGULdMiY/axA59Xtkrxl0P5B77bHrcaPmspg1nZrn3L50rZGrdxOAgp33onSjbvOSuduTqwxj5/8k9lOnAUN0OnsQnJrLYuGqI5WVvcs+lG7UbV6y6+QsWQxgdFNJ7rSODA9v2bB588YyKSEwZZgwINrKD47ofzAZQ0ij36I1NIq+RrDdplKzpZ0+g7JIZozc9o/58xcJCJK64fj2JKerJiZMQrVZu+yBL83AqT/RH7AMZezziyXkKowciUOgMREzumkwwVFVrvNOVFD7Q8MhQ4FAdOqXka2MxIwJmNFNg/EpQz48RFeVCMDapx549LGHV2/YuGm4SddN1zzostEhBEECRGWoCXjfnsmzIOHAwvvmX33vGkGQVJcxaYRkdNtplBR1VSqnMY4uq1yNKkS1zdoXy/IF4zECpwgjXy2WA8bIOlIN0C+ni31lRmI1XRaWk705yMhXi+W0Dq2x1A7dTzcVC1h9+3W3Pfz4KJVmmLqS8KHLiaxe0RJptTbmRt3Gfi+WdQCSArD5yeuvWvDQFvCazIof0rEEGJYFbFqJdaduIcCsA2zVg6hCVSCq1fI9As6+KxC5SeYtSZYDLFnuVoecthKgDlKY91iVce9oZxJgVlFzYPGIjNwk85aU3LN4Yo2pRVyfrD6lwKbLL77uMQA3EEL0oHO5nNVL6Wm9ZE70TlqTzIHVt95y7Y2bwetw3iVTlpI5baN5lnh8tlk9qlCOVaQUjNaIW5Z4eJmrTbZZOyUKIF1AMJ98q8hNOJQbRooJ44CUxc0bvA4DUKIwgDJlwfYbtnib6PctCcpTMqc1ya0Ga9f0B5a6yEw4jG4eLSb0QzTPMK6LAPJbFoVUWwqs+NmPF4Abkuhh46blgUc2m3rImH48dUvgsPHuP122OuIdOYesTGTHAENrhgmTpxVIngF80byeLioFWLV8Y2P6lIkQQw7wxy3eWXulwhkZLiZv3gN3/lNlTgws/Ns/Hlk13Ji2x7En48pq/j6GGlpTcNYvGwozcGJWYrsFtIrFl5PIVQqwcdWqcsqM7SC6deSoxZ66kUSmAov+ctXj64b7pu56wpl7EjNkQ39qsXW/Q9Q/8s1vP4FbEj1vy2+G2/HYQ6CpM+tqlRRg7SEjy7Z4B2YT/qQyR9im6/94zbIkn7T3SaceRPIM2boT8W6Yd5QC9/3+yvtXJ5sw89CzzhwUliFbfYlZTc7KP165qGnTdgg4+22IKSP5g1+9bBmVg59egGWk8I9CVkts8IdfPaBGGj3h80+QcvAd7opG68+bRq6woT/85c7Fm9U/ff8zXzgDWSftG/xWRrWMBV/783Iqt3vpB3ezKpL/9V5PXu55mkJdxq2/gOBslYEvK74Ap6eNvoipLkDCp77kfacVybJczzsjhSpF6dKT+6j+8kULyZb+Pmi1qJ1bR6y6cDKA0br//8iUQfKfLwptrBPj//Yg98NEr0rFRT+iCEiAWWTKf7w5hgrgrOR1GHefTvXMi1RKVbHv2bQE3kPMkfTD/WhrwG7fBnVmQLrirhCrRPjOx9YRkMCMyJxvoSqs/DZYeiOxNm5/kGBspYHX6dGZWG8BG58gJNUGKImjzt6FXPPJ70BUJ615cz84ajFYcdXdWcTyHLwGVdS4cB6EYIZhweHl68mVr/xGNEB0uumGhYTg5sGTlwfvlhpUxsYnn6IxTLWFks9+LIaK6BcWyWpgyXw8uAFewNdUZsDBCLx53KCKHFa8GEJwAywEuGINtfbFr2BUCr8wESLVFsqwnszov7vW45QzMOoVTw4jtlrnCP0So/dX/mMZIak+zEXj6F1RFc1TjlSoSlp5OjiZCjy2GmWU+tPEogbzdlKeMbKcwsj0BotHZVUk+4IcsA5S3xB9TqXpDUSrSMU31hdphGy3+Ktzk7fDjztILdbB5C0UVHsxcJ1ilbFLSIbFVxE9p3kEDSfTC5aNdhIBi/3XecwI7yckkR0UdsQqFNZ9Ak4gFTUxiUJsTXNHX0boPbHpD5cOESS3mgCLTNuRaut/tScqxfD5BCNbCZuIVaW0/mS8M6ld6oCZ/RR02Mf4KcoJN/UnA7Mco3E4SlRaOfMInPYp3HxpYwuduubcNJvK2PdCOjIduA/5gVObqQqmjAeLuxyMU2lp0gAFHTcmJMsSwuPhpVMZG79/uG+YTkPa/TBZOxKfeJgTSV6LcUIQW7Mx9845WO+Bc8+Pf70EiLjVhBnjBys8zTsSz/BvEujYmH4I1Sr1uTrqtbT7/hg1Ht3AKrDRg+RQkH/OlGhUezoGVcFHCHRelB/8z2TtEqf0JQNlWBr3HpSH9d+pVGFMnQjOyaRQYQweQEHHxpETsZz2z7VYobD5SyQ6d946JVm76Jd+yw7BqFVHHRVta7sQY2sUppu/+rXTD5kKEmZ1tF2OtRjHTk9Wkfz+GVhnwOl7yipiunoC1gum4rUkOrc45cVkRjsRQJbhaY+3Jif7dFJFDLf/qWi6oSoT4Nrt1ikVYp89BFhG0PnPT6GDwLekCpgwiIkTkFWIFwZZZ2jgPDo0mHBSSBUp/MH7Rr2zRjr2zfJ2Ck++fdokvJbY92ljax83cSuBhPFA49BnH33ETICIWy3L7keAOABRaXwDp0ZjzmtJ1i5p/UF4R6qwHNdLnh29Bop47rOSV4XDW1CG8fGD89L4/TAq/SIAUePvz47WhjRpXwyUAd+bFa2jt8kyvIA0MBejvacTT4uBGkP5hkOiZzhmcZd5rgpLP6akxtTU9xuyNlh8w/aJenXy+1OxtW3VwgTjdjrg2CPmbg8kuXUkLn/AhKUpe2MVssWXWy0EXXhYCu2UdEENdVoKX+wXdVo542NUp7DvlGhEMuPA9wZEpsfZfRnOynmNaOZtAmbNEERqbHr96Sm0E3t2YGnW/wV19lKRaYYxu6gywhcHInVanPtpcsCNPSdSqbDxWYcgawQwDAlJ+Mte+ZI790veTrylz2sK3Iu2OtuKAHMHGNj1sOP2njsblNSB69yjZBi7zstIXP0EqZbE34ddbUDsjQyUZTUAfx3xWhRWXI8qjGnbAVIG3DnsOcYeU1XVq3MArAoYFeoAErkSxpxJVCdu2OK1yB9dgLJk7Euq6FHZftQ/TKu7DLUxhCWwEEIRKkymiDlgwtrIFFvQVgWYuwGMm3vY8c/BXXmWJr7SDJi2Hbl3N51axb1PUQUHNUQntRp3ULO4kdxJ0zBi3kI63A2RqRbV4VmzSEbKkujcsqClkazCuAGrBWvekpVIYieyBagWz4CdR8qaxGCbRMdOjSY6N7VsEw0jQWPXD162GVMOxrP3AmNiIatwrUL1wJrl5E5v0IvefBzVAw/hFab+iYDIXptnTM/rzWl0LGr0PAHTEO0VttyP6oGHyDVkTMrrzYEVK2pK7A04+x25vh9LEcxxhUfw/V/z4vPOP99JAjOK5X+1XZ+9tuEBS+3C2j+YbStazSzp4Yu/cQWW5drz8OTQQLSXbVlZnzagjP4A1om1k6rEyBA1i9WlqR3YODo0yjxnkJ6fUAAhq2bltObAplWkutZnCXcGeq+x/gFSLcbJCNnw/+9LfvNVzLtfksj91Kdn/ew5dPj5j2HbkFZ3G73pxk1ZJJtLxylRv+hcebUqonqgjHS1Ayh6zXAX3Tc6DuSmSO0xq23oPUvXoFpcJx6aXCzc7jcnjxRgaqMiXcjMazVSZsj9Cx/q/9lLRoqs8A22SjOrj5SMzWv6ZBmwe59AWWb1ybPUxrpmjtXVV2QlwC1LecLz1ANJzWg90OWiv76+rNTSoXoi8fdmUB2WBj6NIU8Tf/a8sqBaUR9l6p/VLKpQCj98c/Hj88siJ4YpDfWeAVYfIOs7vaGsKYWgiVUYAxPwuoopWMZQE4RnWZVy+iZQszE7yKrips6sk+G8Xgy2KtKp9cT6rAkz6jKmZ5UosiWvF51od11hqQ5CPOs1sSB5GvjReWVRRSr1ZSZcorKoQin84rXx+68rg1VRMqHoOWPajy4gdAPT6c+VVxkTCmBTqiL5jtQ+YzbVYvEIPWjq2w2rB/Yl0V62eTXC6dByYHWW1peAmVmeJRkGJMfWbHwQVwe9+SReYbFvP7wesW+WIWMoKw6ZkGGSWY6snQmLjeWmk06NoQ5kQw8jwEY2YBkohR+8pfjpuWVRBWVx2QS+oZikCsriD+dv9NRLRnPw52ufj6wL2EM7mKpgoGXdBlQR/Sdft3qCnTMLqzAek/UA0T55aRHriP4fl4VYARvXA6iDDpdgGc0X7lckzIMEVkUy1M4cX04MpB5LPNV0tQMOp97o7781xCxgGaoQS4867LBDDm6BOiyU7mWxIsGrg2oB37wJQGgLuFVAWfzytVv++3VlkUFZ/GUS/66YMiiLy1+y3lPviLSFCRevSnRVokNDPLEwI4VHP2VeS1FcVMScRfRECjf/p9Wi9KF1QRVizSYXifqNhdGrEq//f3q1twxYtoFq4/hJqRZtfMdwUEZ/y914RnnB/EULH6P7plkn4fWIpmGAMUIkt+y/7Nwt33lrzCHqiil8VKnMoOy/5kVrrGeMJJyplzamkaw+G1fmbWyabOX9GcAXqcXY/TGM9rINC0C1WQbWfE/T1JnC/d8lkfHwBgN1ohx4/ElUEf3in4emdU2i92VPLkQVnvb+N4Ua1Lj56yQyHRP3b3K1I9l/X93v3jWBa+5M1YPwflqN0Y9kATed+8RX352FdN/BvCcpB3jgpfdajxjNIcAZZHDfKZjVpYORVYmVWwqZ7sWqki+YZlaD8wUlr2LBIkTdlhXt4n94qsF+tMpVBTeVdDmsupdUId/0ubss1eOkqraWZdYlM/CR+1SFeFcfNTaLbywOWQmSP3ofGWHZvxejqZ6QVNV+xz6rBxg3uYXEubNHHIEhjHLyFfM5Z1bTrJ3SW970gVPg7PcNm6mNzMpJt15Jb5qHURA4Jj9kH6JZLTZ4NiL3/tEI3LDOVQH8B6GzwMlDyci4br0LI9bSocWfYJ01HvmziWofvRp1iXQNmbK/vKQoa/FEiHme1X0DuN6sKqRjXh+LjsTy35IvArb52gzEbxab6jCEpw5gFNVjDM4gGUJ0WozbAJ7IDpMbdGwTgnrC+QxGq0Fi/zNmgbl14mH07ZJneLoXI4U7FpCqxKZzCNZBYI8FilUKG/5OFy0v+eKFdGoN7kBUJ+bfYQLvhvjLcFAF8O6vj9+SOrJQHjPxry71kLAcIHHlKlcFlv7jOPo6MW6KHZS0/iG5qmz0b9DszBMvuPOxouxk9QakOoC+abQ20pnfHDV3j5K7KMPdb1p+zpdH3Q2SePSxxxcuvHIux/+wD5dJ7pZi9L/vi/cA7xKZBtu99JW7A+ZuyFrMUizeOENkyp54kARpwyV4FWjFqZhbhgd2u1qlqEzcdCMC1dT5hi2YZ1hhJBmZst+NuuhuCvdeT8rhVT/rK1OeW9LzfzLx7d81lNHz8kV/IWXYpN8eSV/I8cDazaa8hIh+6+1UIR9aTaNUnoWSz3z8oVfdVJR5xuMPUqRaLLEDycDTe79Mhze/aMkHvkCl2j6w/92v+An5e+w0jq6bv2E05YBH5j3xvRfuQKupBXHMGxKyjMRdjwYBdulDljKi1rw2gFeIcMYCRWWYLh42AVgviMbONC24mVkIMOkLhjLkSy+2RLct/heWIeJ7v0kgVpkXI433frZI/oWPiViVuhWzDMD4cfQqLO2w6pUBC+5mFoLBjpjINwDb9GMjf9alFEmqMI9s/83zY1j3ij+4lIMY+PQmlVGdgdhxAgawtoylZ8TGnS94/A0jsUyttKbiyXGs20iZUlUqVr/4mqLsijH+mh+aWQ5mydHdt9190+PDI0TrG7/jkcdNRnKqQ3reK6IBOO9RVBXJufQ7N2ypsAOftyf5umVGQdueAIa/891HaZsYPONtZFuadaFcdVgn4z5ArrBff+Y+zCsinPzRZyPB7hOjqrpuWWqJ8o8GVQHOxV+/nuqj3j2Rjh2DWMx8ewdTvv2VJyG0S2LcSz+2VwwxNN8h8ywcDrtcKs07M9hxCgbOCCF5FTHc9+IHNlnw1jbEMDCBpnCvIvmG8//YaHYDOHQ3nA5dKQAbhtask4XBKVOAWJBtb9lebYzZdytmIGz4riuvXNxUmHboGeeMI9tjeiXWrl51Zs7qP19728omk/Y48QSIluPpFbspAShPdBp02qHRq5B8/S9+fs/6ip2Pe9npHt3MxMwBvBapS+1DOvvE6DmSl9f++ebFG31gr6NOOqEvWQ2tXp6+d/QMg6U/+e09I+2Kuae+4lBigGT6qghZWEG4YL6IuHUAYsYM2o6UA8mriOHRc0mR7EhfHyMjKFSRfOTc/y+6RF9AHQCSzKlO8oJcjwedSaVx7pZoGRADlBtHVAwOQLQs7FcTvMLyrF2dSgFG14x6BBINMi3NeElytaQ8SB0gO8/IjgE9cPd9qzczcdd9950NyWkVU6ZhddRaB4Q3GvkxgFZv0vgZQDRqHi3DueSnwOh9t90/1AyTdj1830kkHEDvSL+ZiGWBGwOvffvBEN06wNhhV2TApt8MJq8ihhUTWD+MMjDCBIa3EEMVyUdf/cuiO0aI1CtVWDA6fUEf1g7v+y8ly0HCaVVyI//wuRi1qj5QIgAkWUG28bwJTlvLE9aJpdlHYjkoBTKT3GhvzNgJ741aLe5zuCwLJdwAJdzo3IgAnvY4VJaDUiAzmlP5orU3H2iWBwH6n/+6ZzeIKA9j4k7IgJN/NyVaFbFROOtHUKpKKXnBxo37lF5FsvQmrCsY69eDaujmIbuK6qJvxxvoWG2MfNPsA3G6arUAQlgw8o29dmqGmjo37TlblgMkVbiRG7nXbavBOXBGsqxWCTOqlQVqwdhverIckNTOzKgOHHDHDxQ6wUKEQ1/1klmElLJAYSdLYM3jfrsD+ZOnsnmEosq98HGz2Px/+9PhhwvvCmLNYkLqocl7kW3sNdhRvdbYAadLlpVUVfPkXTB6BGOnPimv5sjjc1Nq471k1g7YlV5OFG0wdjF6seDAmck6AoISs8+8YJSgqBwTO0/BKcpDvzoxBoTAXLfecfP9NB9fkJBMifm3zp9/xz13suN3dhvBzEgyI+mRF+BdAZbevhlLPSFRjqNDhy2YuiSim6jZKjr1bojGROpXZ8Agrq6VLN5vrqmNdUtZKIP+7ohNWaJaNAjqlqCvX0a9bhE+8O1HCUEZWGKfHSFZJCSvSoceccRzHuDeU9VGHH74EUceeeTh14oiqsIlNQbp/oY/3o4rdU+BNevwDnBGNuDqhmDDBmF11Sr+tpZUm9ji5Eod1BpYvwGpKylyz/67PZCowepIeVZlRiKk2iK3fYiUkVAFBUMjJHUlGWsjXbRgsN1Lf7VeyoAYVr31t1CYyJfcJIxMITeSUS1ED5ox5QP374Nk1gUljLufQHTsTPueVEavSSnwyIMg6lYdid+9dDiUwepI+EMryLPuEVn4MEWS1ZWa0k+3I1CZFzx2lm8ZkFgxjFItqdQdMy5QmZEfufceqUyS6kkKumMtXfYATPtiAkPyFpLzk/9aMMRWWnjXwGG3l1+wDyS51ZMUnHsueZxajXDe3VKSW0eSAkNXPoSRb1nVSRkw5YrTbi+Ibh0omfPL95Jv9OaDf99MiOY1SAp68GXgVHuWROfKQjkK3HoLhZKsg5Sk383kNYo1IaZ9ZVgqY7LOlMyZ/8nN1i08MPC62xNGDETcAGE88OBDGxCmdgLUzjDVNLJm2UMTwL1rmMNOzzn38O1BCTOwCiHhRrrjB1eNoFowY9YHH5wLSWZgLUIiwNo//HElHacYY4shSxUdRr/+OV+4cBwRM2sREgGu/9JlpDzFmAxrSZ5qE+t/+atNE1A0M6sQEgGe+Ph0CiMzlTG0k0dqtDIFQJismXJA3PO7RwgeMcMAIZmz5B1g55Ujbm1iCSkHwYE/3iSl6IZVCMkcHvr6TzYFdckKOPNmSSSzFaM7QsQNohtb5+a7v3cchK6BWaJvn+cddtAutJXamNH6yE1/+OlSnNodZr/k9GMn0SqBGUC684pf346pA0Ohj+pxNaX+9R867G3PnQZIgBmw+ar//f+mGR1MIjdgNaHAgq+/6uy9ASQBZgaw8eaLL4FA9viCzPF1jCvInOh5iC2//Nr1o32ABDjAokt2wRq8WKJ9H5Pp0AIc+NUHBCAJMDOAtdf/5o9rCaK7Afb+mVSmlAI/+fjmU59/6nYQcSNpazBcSr+di3cPzBIwb9+9Dtxrp8F+p305vPzBexbcvBBcqg9zGHfgkUftv9NAH63l6Kp7b79x/nLMRIeJHx1GUEJCrFtNqgGiNZrscdJJB+06wYC05al7rrn6LgiRbLHsbUWAiIT8FlJdSA6Tjzzp0D1mDxhtm0ML77v+xvtFMHLFRYdtNjBDKT2eOhK3fXhEgmCpVHMxyiIFVv/Xe089ft6MPgfSxkfv+POVqwgYu134jsIiCUuDt5LywB0mn/bsI/aa3m+0ptE1j911/S2PQBFFV90Y/OhqxVJNcdfHfw+w87+dcdJUKN1sawDFMmnpsXgPAE4C+idNnjxz9pSApaG1K1euXj0CZhLdNUvQN3X6lOnTB0mrlqxat2ILOIkar6VWyxKo6SQY3GX6jClx/cq1i9eCeaRDsfa75Ks2SFgEps/Zbvvt+23LhjVrVjzRBEIiP/E3upq4/z/J7wClYE2YOWdw2mBYt3bVomEIRo0dgQeAHeZMmrm9q1y7dOOKpxKYJ9FVC3Du3VKpmLTuC9/eECRXgl1Pfu6zJ0HpZlsBkppavgfeE4AZiY4diV50EvmORK3mKCO1szyjrTlJVLopUWewdsKURHfNUSI7oETnblg7mWJHYEWFgEjnimZKVLsl0WpFsDbCUqJOCySRHVCiu1bA0X+VypRK6Xf73kuIAOZKsNeZzz9yPJRutjWoqd/0DmBYiwADhOhZwwBhgBB1K1KjU7d5i4SoOdLjZlg7SdSb6LLKiq6aWYuE6G0zrJ0kuh5g1tdGFKOa0u1nQTCqLTj4fu+7fkRS6d5jrYVecCDeO/8EKucZS3eKNz8ulYpRaz8yiDuVFgzwwoBDPn5zs4DSvddIjbMo/rlJZs+kWIAzbpJKpVL69TwItPfCqPYANI4666yDDMVgvQUHY//cdGh6hqOAfX8jlUlNaf5ZEIy2DrDTK3bAWgAvgL6jX3j2HpDk1kPGDGesOMC0z65XiiqTVrxvHO6AOa3z3vr7tToQrwDcIkw89gWn7wJJbr0CE/uxMSF3/HUPS6VSKf3vXAjghQHO2ddskjR8QB7gFmHqyS8+eTpE65lm4J9be4bEApx6rVQmldL1z4ZgOMBuh1nge4plM40e3BGYE2HWqS89cSKkHlmL/XNTpCzTMxUG834tlUmSHn1TIBite7/50o1/p+DLZVNJIwfUAJgrwe4vfBmOeiCxBP9nRk4zy3mG0tIObz0NpWBo+Ps/gTAKple8bhAYAvpIAKJuCwb9n7sGV/fgdop/ZozZy0JVHwPPUFia8FsozSHaD99CEUtaXoVibLggOUoUoawL8MDIpT9eQveLeDv+zww28cLpm6LMLSQNXEl6RgL6t4/WR9u17ltoPzSBPhAQsRBoiq5aMF3/aNei39vkn+tnKlI5TrS3ZFQGEu0G8CW3X3FTIHUDpcDqvm5hFxP+2QmWkxLPVBrViUoRUMIbpXjoqkuX04uCmXtJ3VBYeSn2z84zrlYFpAaBTUT7xn1QKHav9b1TUjdS+AGBsWBhtQyy7u5r/jET5KGkLA55ZL2pWyG+9nV0MRWPX2pxTKhe8csr7nLaprT7EccdPfzah3vhnIvUjfABPI0JWS3wAwgewdML3j0OKIfpeix+/U6PXeAMjLHsEIn9B068Bp0JUY53rwzf/FOozzhsqsa24u6Hn3RIvPYTrg3j1Q9CXYPPjjp1G7N2SsbYs6o8feUEgPUAIdGTKdx2q8XaNH4Wxhi0V4kDGA2pCAkCJOFdMzXnY9RtYTzGmLGwquzhgQKREEQrnDTaJUu2CVGzGHXGuk2YQAnTAL74ritvLSx2wQPT9sSoV4m1KxkLl0QxYWPi1r//dTPd9QKOORhRrxosfIoxa+WkUBA2LEVctAjclOpyS2L/D11ADLWoqfJL4whjVqlKDGxacMv1jzYQ5qRIvWamBMe+9pxByalRsdBdJ4Mz9i372N+M9krUaJhBBHY//dzjnBioUbFg1ccmEoyxcM3HAhK5ymo/uMdRZ5w0GaIbHSupYM2PvwHOGLZyCJYSJmUYDri1hGnjx83Z76gD9y4gEuhYSQU89cvvLyQYY9cpNRqjbcyMUdEa+voabjGWI6O091D44Fufe+AsgFEFx7AKgaRgMHTdpX9YTkiMRVuLkhWNLevAzJISNHbYa49d5syeEAoD0dy4efXixUuX7DRAa5i4y7xDDtxnxgBtlRBggbbLb/3b5fdDUGKsOqWGc9/Ff3I3JZj5rP0PmDdAbhGoXHnbLz7wvN36aLv9rvP23nWv2ZP6Bmifhjc9df+C2+5dCm5JjEkbUx6P0vq//nwJQPL9TjxlDq2SAMMAgQAzA1j92Pz59zyxhLa+3faDE3cYbJBG1y9bv2pFAtyUGKs2Jq/VXR+8AgwaR5x02gCghJlRqyTMgfLx+2++5+Flq+ncjSTGsI0pP75gADxpj+e/MAJR5o4QYBUCDAwwkGQBYOip+259fPGSVVtSsAhCEmPfBm7i5NfuBXHEQp/R681Fixc9+I/bRxkzbzjjX/AaWkMBbBlaP7RxaGjjluHRLaNRMRSNvsbghIHB8eP7xw309zVCwGSpObp5aMPGFSsXL12xZPWmUcbKHYpX3wewZdVTTy56cvWSjU0PkZqt0egvGkXDTMTR5simJmPwky68T6uvefjhh5YPG5lmWJUJEBK1uoGkMTPz43/0i7cdNZ325oCEqN3aWBsBYqxd4w/cjlY3JFLiXx0BVlA4IDo6AAAwqwCdASowApEAPjEWikMiISETSl2UIAMEszdwt+h86Y/qX5Ldw1Pfqf92/Y/+wf+D/gfLlV36N97f67/6f9r8ae1jqTzP/M/0P/Vf2r9zv9B////t92v8V/tP737if0H/xfcB/TT/O/23/Bf8H/Ef///7/hP/e/uH7mP7l/wfyA+AX8v/sv/D/wH/A//fyzf5n/uf4z3Kf1D/Qf+X/L/8L5AP5r/av/L7Q3+z///uJf3P/Zf+r3Af5P/Zv+/+f/ywf7X/z/6/9//ob/aT/1f6f9//oG/mP9i/7v5//+H6AP+36gH+x/9/uK/wD91+5o/qv4tfrZ81e/X7x+U/7yex/499C/hvyr/dv3681fYfmq+9/7X/Feh3/R8G/kR/p+oL+Pfyb/T+KDti9b/1/7L+wR61/PP97/dvyW9KD/f9HvsF7AH8k/qP+99WP7n4LX1v/Ef8//aflF9gX8c/n3+2/xH5XfSP/L/9f/Lfmx7RPyr/I/9n/OfAL/IP5//rv7r/l//n/k////9Puo/+3te/aH/u+43+p/+3/Otlme6nrf0Eb4Mxidc6tlP+OFz3r6eRV86AKbsuqewxPjpqmBg2Tfr9fr9fqerFosKTNCWODq/oPIY4Phs6YouNqxz+PuhFkSFZ1QiDLrySQSFIRfanUA7S/Cf1mDZN+v1+v1+v1+v17XrTizefCaOPxf2x64cFbt2kMi7lQcGB3DaSy3F8XvuI4uLUAXDHZkBWEoJlvJfX09kTjYyd+1NkB00srsHXCfLuQ7gxPjl+LHEy7GXy85v9YMV/KYuU2Uvo7yL2YoMOOvPX2mlSKAMTTHdEnolL4DOZAPeww336r9urD+v4P5AUTnZK5vc87oJf9FR+FYXErEDn1MgPA/9s5NMFSzr6BM+wMshJI6EMjHEda7tneP7cdjpBVHczLMAZGKFfEVu3x6kUEyvT64AiNhrz3CMcW6GbE8BZ909FePhiFxg9Q1XnXbfIOvAUN1p09HvvqZqUuZQEhffLe9LPGierxvIBdi6VcyoI9Z7RODGnbv+WIshkJb04//XNwhToLL8Lcek/8gsPIsE/osaseEKSwA1ForyKYSr/dJSqHrL06gCjon2MplHoC06cWJJ7lyRYpPn51dUZlwTQhBjM/40QdPnJIMDv7Boz9nI36+OjRk/ic2SEjFLEFsI3kiNQh8tiDeiSAfFTaru+26zYxG8H4U9Whfta4zmNc13XxooxfsN9ZpW52FBC4plgAOeqS4bbX4Bgs+bYYfgIdaD67iwJ6VNHYItmwIF9WetnUB9Wmq9TcKQBvDEP7KQF0Z+dJBHy6oHyasiJZ9HUV+9VABdogZE6Gu6usHMI+jQEtVYybpJZwZ4f9g8QRCI9qfSnxB6wWVS/9ypKxdMJu1/uCd13KJfcYOCsvaCrCu0Fe9ejlQUfAyd8bPmRIPOCUI8R6ofopx53FqimjNHDBC6DcFW04kp/aG7X7vLnJGKSmFptRd/mjm3dx/U4gmNX/v+5w2/ly/EgMx5mE7EfRAHUU5w00Xjuxv0O2wcBGPFnp7+5ZvfYWIJeWFwC6k2sLivn92GjzG67HOFC/u+zVgGT/PuyvJbrM3cucF/BV69IeCRsQzsAW84yWXGmfzQ29E63vrX672QlCORSrSe6he1Uuh/atOdXD03jnvIO4Nd6zjRBPP56ywOB4JM//i5W8cmTLgOPPqmBgQnF4apWuk7u3ev1+v1+v1+veT/0x/x25CBLtcRMUSEZ+do6rFJSfzOCvAWalrfHGdIlcwbuY6DZN+v1+v1+v1+v1+v1+vkCKD4fGlTkFfVMDBsm/X6/X6/X6/X6/TAAAP7/2kd9+yRVm1+jiQIExAxmoFfd7vA2kwC6ATpWtHTIo/n/X/BJtuwk9OFMMWVaoFH8vGcbusHMQIv8kqrWRgsPTMqG6/7x/gPbBOzAOR+ZYpYNrEKjkbaiG57IN08YH/XeHRMoGj9DDx7S/FUYHDfRXJFYD7ZpNfjGltZT44wcya6/Kg4azZkuCGUpd6CGt5ahEurMmGnARKcedtlLrQ5SH1KkdHBCYhddKP4EvcTkVx5j7sdZM1qUhJLNP+7kAnrVh+s/hXRcZHruJpg1X8L0vpbWP8iKNcxTg9XDqnZgUBRd7shKHIbh0OQHzfuHZfLId2MxlLY9Aii6vc5Uw9c86tKBejFB9thFigspHJY5cnvbalT90b7LUwlwB4hKxUXU/lamNC9khq0NE/1+NGuJIu100QTYfwB5dNRJ/TiXAQoOL7va1nZPJ3LGgkV8JoXI//XA72CijuAAABF9pUMlaPSKnDU/QqcsTyvylH1R32PvM6dt0n6R1B73gFidXiJbjzyV0Z4RgJiDSdRdyDy5Qcu2N8eFaTf9LQNy1k7RccFQtMiApygpE3w73ltdWXsLLSRfpNJYG+ooRpxqlssoIiTUue8D6wIgDzyUh6B7wx4poysWhiJXBbRRPeKO1BEbaF50479xrtvuszzu+eEUOrVBd4JkJ6UlrAtsCXPd9K0oWuZ1wigW8TuI2MfbgWuBwDQKLuqPa8fSxgtItW5bA5GgAvBfGGZkiR8UwW85QgYq8MwXoxEn1cIoBAKCgzdzO1ojm7OFbqVBHoGucpjAx8mqIcs+dvN+ym/vfqcSaz7lFBvI/wgWIOUWCEZz/K7Fep5A87hxFZOGq2uSBddGXGd0tYH+yL+Edr0oRHQ5F8Lt5E8ZNCJ432Eqidgt7+wEbcknSK6slwfvLLhS4gensMTFziOx9sAvOtvo+XLxBA8izLH+17JHLaR9AhSaNlCn3CMEkvd59LAMly7BgeBzKjzlc2lSjibgAz9U3BvIrvrkUyG4vUipQRX3fztZg4RKF1WhSD03Wzrua1q/bLRo/pEFlD2hN7TneVSS1AbtXu2wEaIM6q3UWqdVqHLiEqYTKecXyyja74wLqp2JE6vLx2Y48JUM/gq3c2xr/69rF2LEbElBcWYj5EkxDch4r0uBsS83cvZmAcK/HAmLFt5uX4+FpKQZGKmPuKBZlmgxT7dD+LAaJJKDiLgIi+/VnXb5ZFRUNQbvCFtlZOfSFPlzcZANiL+yl7MdcPaiV2k2VIY9t0hZL+AuwI74rCwLK954igshFz7GMGJXFTYlovoyP295WDUyGfCa5F/BlFq9ryPhy45brRXkhdtzPLqcZPNhul+X4ks3woIXvrMQusqzs2VVjA2GzuAABP/CedmaK1KuzCq+rY0kgvAH1wUUJMBDOXqKkjpp/WQ10kqUrMEQj5w6RpRFHDvoUnehPvgc33WwAo6mwyj/ymL2WdsMts+RB8Uq75v27KmZ0m3oN/LnS798GOxLljLN+D8+TiI6a01qEPsMLAwissZqZvijGjhSXBmZZsmMKxSn0cK/31y1QJUIOBKDSi+XZ0USlA4we8/SF/gMNW0Wjc9UipenjJQ4pusBnqGD8F6n+ep3YVChFvNkgn4bNxR8A+fJWfnQeBqfd4MF1nyPqfgn13nzch7YHqus8pT6iQrwXGAyVP9za9wwwmNhKXNWDQim+DY4u/+nL5eofe82r6ERGth3bChJOlRNZMi+RIqT8CaViA0UMEb6E6tCu7XCDRT6vQ9ED/xCeZCA87rMHqUKiTFyTGdPnvTJVcAWJ30Mpx9J6YxWJU1L1OwSTSB6XqnV1Ovu70A/o3wzWmrQU98Jjz/kIuwZGBfZ3Mm2uqG4W/yPJr49uVgNMcHWceYSEl9HihFE2ubs8/qB5VpxFiGMAu96VOs8SdBWQRIiomXtQuly90Y7rRghcmEFLuGHRvoAjKM8NaTmllcM6BUQPC676TgKWTgS86WbJEIjwM5QINW/JTIafCtG+xTttM2DjaMYxpqPbp7tpbZuhnwJzliQtoFi2HvFuO0GmL/0GfDysBoe94L1pDvwBsVGrIbPFsIBckaL0k66wGp4qKfltP8HhoswDoM6e7xITozyo7YoaJfEm2FfUzBz9fIvW+bjMWy/FIVflP0q9nCcEsRkFhsHGTEroCOHASEpC3p/b0wtxR0bwHIP0knDko3a5rqiwniuae0NzZSD4hUVoA2Gk2QuXEJcseylZrjPEGqWa8r+GNfbsL9Dvs8l4jp5GbLsA+1VE0PdWxw44bXpJoJqUDgPA4e7n3o6YNE21hQn/1o/Z66lnMaChA7n2wpE7eVf4RqhcOLl1Pu5CH/iN3NIxhiWcL0879SnLUqmWF4Fcmy+W9IOVyTKw1Rs/0ysn+JCSWHwWGKzVFbLjreY9O8nbf9hYDS0Sm2ae1BN7lzORYvq8q/pyz/Wjq2OV91sykbuujs17TanFYXlAO+UIn4sg/eN4IGMOfSLy5kTX34HPifsqVeL4K3dTyJWRmL7ggcup5ovtgXkle0muObhp1eEhHw3KStxgXq8fsEBqTnezRtppzmPrvZ1s0Te8+AqLhbWScZsIYCACzfy1y/bWLYX9+6btK6X3DQVPCxJcNtp/pNCOPVJ+Qa+AtcTpGLnFkfJZ/gSJ4pPpoHntbo7YjEay5gLkV3hHcxmU0XDENz7pyRY5zaKUbNR+39GddzdcoG2xhY3pb8JkwEc2EPbMScbwTEm23BOT2q2UNck1R8ZkYyncoktr3enEcWiPCVuouEb3jVo07jevva54Hk52BUfaDxsn/0ake8cibB+W/3EeKZLPr8yE2PLQqFgsIYJ9jk0k3TVwkisA5exqvoZbqsx7ePtW0zknd6ahF0m5qrsj7AnQET0eRT/u05Au81O8b+A17PVAsuzuoaDebAiRahj/L7mLIWPa9KYPMHI1rQDCbaAmR2IW9Z8zhw4opKa2sZ/o0Sl7dk31/z83nKUTghenEcH7bv3NBjOIQADjk7eJXrKcFkCRILqYhr3dNRhle3avFNckMDsdQA1T3qq43KFpX2sMSanj9T3H/zsRAGWxys5eeioYP13O1i+qRt8r20R0stZrDu9N8XZjYosOcfj9bMdZm0xPMIHI03pQtfRpNtg7pwmVkZ88CWluNCOqHM+fNuA08A1QwI+U9D5u5jsHTYdGNY3dcfgVu8UzDHqlzfYTIKRSU894Aki3Y2AcyuGSB2437NgNpjFwH7rMVU+ZDaloQ8qSmPy9p3iDya/Ib7tqQdwCJScb71uyeQyD8eCx7a/urOvCoEmN6FSZDznluG2BZG98MLGrroqzfxxX8Ip1MJoEiFSRftwW409hiecw/N+7QOKSJGgjjSnwCYZzOSDIAFhQo/qv3xMvrR4sLsL/LA5aeRGaRLthxWan3HyGLhmUfEeDC6wA5Uc8m/2veIn8aUhwtCBHZNGGp4qBWjLKJF08SuoTwyrFy0/YOmcypCn6NNyZiN6IzOSkRBYzGurj0ap8lOec561zcW06Z0QdCLDbhlQhaW7IOD6Ii0iM6c2jiDVxQdmzNgfEAEmbXxZax5PO8tnoGAmzOs8qB9OZWn+uFE75q8LXtpwu6xQjaTvxs3zhS/B+q9T+ADiNqVpFqSKYqekWEHtJNJEG3ZAUtnLlxkHbhcE/pYoWS60pPHcpRpSKw50yRWnuvnkMSqmG8rLxVt0TwjECju9Q6AqwT+tM1c+brqMgVxS9UGHjmgPkFinai8OAXsXg4s4lMY95RBUm77UOIX4NYxlwBjgiX4l/pdQSKJ18uDg9ZrEq/0IbO8i7RcmX8KTW3SikCsHIA4qFOAKKOQ8Ioer34q7sMLf3LBq6uavWYJQf/Kcqs77kdwvTvQLWmzCRgeDsE71ToadC7TFfaOmQLQ5pQDC90E2u3mXCOFvyOyyYZjiQSlIrZlosodQA+gPJtnmWVV06URg2PavM6bLkpCqFhLNmQ9klp6xVdInSkxp1/5Dt5n9YHA1jB0dR5Br7s+LS4TabqXccGZF6zGhAcTClGM/PA88IWeRVFpFB9VOinVmMuF6hk4NWZNJ4FoV9Uam92roqZkn5bVO9H9ZeC/H/q7gQYBIucpVTR5IKwhB3L4M3Jg+S2xS/F54CnU6WPF29162WGBL9MiYevWOxSqVlmsWXvkYNOPL3Lqz1zHTbJ6euXug95PfKpTDXNAQWaOt/97N2NIJRn/4jCtqy8Ng5Avjmoi7rUbocZmJN7D2Aeh9GPk/2WhBb4HycJucoNWRRH5rVXqXh+bH4cy0jOo4t5us/L4v9jLEeNSmwiTC1amIitfksb+8Bqk/pH7tzGVjpl6LsH2sFkILoAfx0Nn2/xsAIkN7ElLvHd2qj8UQMfoiiZLr0tJLItSJeQ0Rg/pNpez7Pvbup/MGhKHgP2cdbXYb5AFp4i1ITW5M0A+gsCEY/2mpIaikGOCVrfUCppKYGPyKJKhGRs15sBTEkuKZUo/uN7eCRO8ft8BAOp77MBhUyYHsvW40sppBGKSHaRjUjCBJla+ZTPfuYdkKmwkuQLrLIycCV7rDVboDMz1CLFJlplDQHseHYOun8AXfjevakKOhr635U/QE/RuY0kxR/v0GEf5BuLDl4EW4PlrdiVTyTLwzE2iX85X69nEwWAQj5mm0xWMRhNI7w+dAn5Iacclyvp/HcSRxF0ljALDCMKtIQt+p2rZ4bOHCmVx9nCISWY425Bc/Vuf5NMfvmS1CWeW9KJdQ8/aGOrYsBfUCpixdYAkZf70RzH6ui1nhYUDwKXbRjttL0Cf8F0Wv8EBdd4BggG5M8zK1AbvGoOw1bkcbeiKdFRpGHbDR+f9CbAzK7s9aAPYtsZrJfMZ7GWpYdC7ytRibF3IwhbiWD+mknET7Qk/Wc9yRtgEjvHwb0KgyyxK12H7nuNXUGpjuPQ8fkGvmeuMXl8umcMROdvG0iGR74nEeBBpJDS7VyRf4L3iPTcB3rmhBJQs6tfv//E5A395bBbuQaKnaX3kHoBHqO+7A4C3rbJFITypTXHfGmTiC8xH3Wv8ahS7d7gsnMErB3LJCB+jy/lmOIenJfg0ZrxgnPEFd0fMQ3KjYu4inN0bLcDru2pkj1qLeGmBBcFQLZekU1NRU47YaLe/sZ87a5Rz1wyQua8lRMZHrM9D+OqpAhD7+qX+GjJY60GmMWmF2ut6XHr5z1py5NM4uCfeudu7N/f4KOatqx14toaVb6PHlIWthn5Wwkfr6a5V+HPzEqlLzBlWmbU/dYvNneNVaIq1IhoWmENfwTQ4Wa16YiPijQXhlkkdzOp+j8TbpJ1cpbqLArhtc+Y4BE/ref4LkeT8KU+a2PQ35TxZXBxUT98sx2MQbyZOoC7ZLdoJd6o0uStIUn8861KzqoLt+jtzirDF6xYwZnVeTeLP9ij+cGfU1KP6z+Pc0uvVvHl6EPVLAdedoZVVYRWLP8XMdOOwXXaJw3wBrrru9FyGvni4+DcfElIxn+HSsY6i1b4wA4xk739UgOv/yftc93KsaD1W6k6OdIVdCx80y11PeXPaqSz0Ma6JTqobnwMQP58OEGMqONm2gFuUXc1X6lzLSuQQMwFh7a9fyVR2CXl5k0gNAifIvNcxVYZZ1gVwh/Mh+4KJMbCj1dB4hwX/CA88rdVI+y/4fNKSnvs2JuCloT29TfCxNVD/PKo0CqKACbLimt/CW93TcpLYp2S8EOiOVK8IeUfO9PYnAStLTkV7A5M0B6hLAFCdASdrGCoR64IAcCWOtLoYtKLIYyOEPn81zldj+2pBLEwq/54Q5VeVl2rSQe5IQs8PzHCZFW2FykQGQymi4PTvSNtbbv4xy3bxDyZyJvi2lOEgzZrzQ/3Rlvqmchx4HjRlhakUVBAbEhdEwYiMj2IXPgpaab4oyfzHhBCg8VPEVzY6zo5mhiNfALk549lqjzLq3vea3HvUdVe38wl7J8gf2ryMKDJsceJuqjxMm9Uku511iLjGW7tDMv7tc3e/sE9qUNRy0YZpG8ciGN80rokU0mbChsNzevI6W/67mB0ctxeBYpU5joMybYLtpyF8KGCRS2opc8TMXX/IhvzTcv0ePSf/xV6rsMyNeJ1jQMXRUgz2IO3801hBrFN0Vp3HvPqzmt2FWl3O7um5VqjoT6HH9oaKVO872iseHV6GgMkfbhbVTrQCVe/H/v4MH+utrLspQsxeDiIDAgC1MzK9tQnJ56u+NhSXHybEEhHbxXbLIKGWhdo9Tfafu//TcCrBkFKpm/svdVANKWP1ujwGK/mv83dl1+B+Sh8t/B2vJ5Z/LvpfjC9SymHLjh2t/pZOZUmQZVqhxoiBUnyhoKGIRUjZh7s1pj+GRK7MQENcxVluG3EeDF5Ed0TGU3R9KdJ542iejyDWs+S0pdd/Vb7Cw16Bf19ZbiowAizUkfv4RYVLRShFtsE+/NbhhqF1Gk4LTMI1UZKazw3TNtahrSaDL2RqA9rrI4r8np0eyd7QAqZ317lMuOWe0w4c5Cy6d2n4drrEPSM1rPkOrLKpuWPpB4eNvO59QLR7Y1DukF3RAsTM/ajDYILBC4cY4J6co3tS+rPhyhOO8MR1aR9y3aLHKxJ+RbzHiGZ5Z0+0IUXhKB85jik6rs3uMIbbyNqO0qCoSewJfWLYcZmb5RFVT8TKlLmJVT1ClsKFAwcIKLb5pJ3fwDXSElNHEdmrenZRJxoAgXyXNber8d+0Nnp9l+6y6Noh9SNxvbSe3GspK5+D5Zdgi779POWuvbvb3wFNZmEkMxMGMPOJkXP1uOEzMUM5ITByMLlNhHNRb59cqdH/uPLCrQVLQaBywdm0fLEk8VQ0KYg43zscg+1qJuuZgQZdaKedPX1CY/aBykWKA6eXjrnUp15X/YJmHfUBofTog0beOtNjFhYkxfzr5A5AdsmjSipGAeMaOaRxOyyUWOWphwugasQEHaeEA9byPgSL12P220bxBYJf3Cz+xtE301uUXRuBHqCegJw6TDl59EaKZ+RodTBDkhoCZmhg8BnPB7/dGr6ctoZOlq69vXgwLo7eHIaxmYg8K8UY4Hnt1q0/4mloN6UKtHGdoc2YgOhDD+EVvUfOvwPUPTTijyRjcLwBwj4KAVyQ/xfFM7urKE2sCfQPDm8uiLq+5yNru3PtRaaXQ9i9WLPhIRjd9ZDdOlxlXNzrxlg182OOfgOyRC+4PPST/qTv//bsYbMu2AoLGyjalMvlQ84Knnvvhfr6+rqoz05kGGuPWfGNhlPNv8rpg34hpzikuq8iBYgiW0eNjsYT4o3/im9rUam+dLDCNRO1hdfBZ8KTfrFDE0RHdQWvDzv1QrTIwUQ1xE+q8hqY8KKQRsV0n/OmLCtksV17gHB+XhrShIAfx1MjamVSC3VP7de8MDBAm1KE9ruPs4oR2zkKUXUEPvvkYVklEapIlgzpKd+mpD4OALgk3TPtpIegoMT9YPEJut9QiHlOnYyOPvOQFSPKgCicShFHIl7//hxILZ3djSluV1QgEOtBd8YwIhFaBczAUSAUZ+vC2SkQo+n4LKxyW3JqFMxV3stmRMdQvm93CpnFln32vNdKCf6PE+MBT7lS6YPTqWFvsws28qtXiDfa3OCwaUrqouBfon/tiN/6zTfxpZPzYra2dma8Az9WPMOavQyLy+7rGh8wvtnEHs4uYXukONQMVwsa5ksVUDVvxc9DjmvJADr+AzBAqUm7pxMkUq1t8iRdNdi0QOwFb7TyVldlhui66wF2ateHx7jiEt7zoyrIJNco/JGjpqixGqmlVY02K5RiF97wDXhWrP7/Kxd0bjyXrkPN7v1kU61qK4zk8ePFL9RyoxiFUFcmCezJaHQCbw6+yr+MduOzyz/qdDzmFzTiLGDqUO51kthmVSIIyh/q19MSqu0/Gxst4+TO8RoeuxgQqdrO2y8brvSyhZkCYgom4m/38gfrnxwkdgMvCn+1KEo7y5TsTLBXm7uX7X+C4s0g4vtKngp82LDrzol/LvwKayfKUyvcfAsjEF5fs7iHQsCw7AYnvNn5AlvSjVJe/SybouLhP+mZy3aqEMVTG1D1RA/idRRxzpwe1PUV2W/D9Nh1Lxp0dwG/0LR4ERvkceMaIWOK+xpWeJ+/Kv2Ze27UEC6x9VtV/DW1cAfkXgxvT5tvEXw/WbNAh9IMNgLBFeF6CeUmfAIgEn9dH2TyaAn9pe5xaUPeiWJIZXXgvJayAInXNPygKfilzhAyhUn6bpez6ZxwFLWoShxfnyWOgBa/nLXFlhP/hXwWRQ42dz+4ZA9p7a5xQ/KdN/3ZpFkBPxAo38OrGOSCcZriulJXA6ZEby+GT6D1x8PBtfXALgBQNp3dJJYm7bPbakP2yAMI2xfwFbNMjr/wSJlGKalBt4biVSi5A+uQY9h9/SgwpstHTGidCk4Ux+n8wOlDbC2tNNQN49r5iPy/uASaog/K/ZaV2XJRZELKbpR0vNrrZ8zQnS93ZDx7V8flI5vJQshWF4Zu893jgI6FWr/jKMGE/ej8VqA0+bpLDi9TJhYTo/yIeBl2KyDWsudQK2pAblEuOK4rqVMnH1bWWsO4Ys113hznxcJNuNVlgAUl59LoRi5RsCN9tFwN93409j63UuOmHwF8EDcGJNuouMRZ4KSwva3xdIsQN/D2cqc0PYFFFMXnpL7ELNWqhbiVuzUI3xCRoyLB6O/4XvpL+xwWt4w1mPGicGWRcUMhe8MZU8VbvCKuBb4vRKbIoXSAUN351C2Y6LKk+WBy1+pbdv95t34mOHS8VwIZDN8w6PCSJgrHxIAZWHZQ2XZJpCHabip0K7rnbPuCRBjOAQ3UxgzYHgkUAb/9ah6DN7bUCYDnNEVklqXRnZFFF6J2V6PqJUPGycxUlg+ywqgTXGq8Nbl07LknpxhH51K+6V7hseC+RpylVwZ0wMZg/hrs09EYyUGMPltQnyJ49guHH+D4JtxNNzRMMsl+R1BKVPucW5BZ1KxtXrWpi3wNLxD5iEInDVPyFMi20yB8MFGvCSwojeEyOaWOu4rUbz2RAfaCKRe0Kl6MI3ZgzVXN8+/Xp4aFsuBHnUYXRsW8x9xYI05QoTojYDASQchNxCv2AImgxvF2mtWlw+pM18vEOVYKLZJCsxyBUCX7/NLHQXxdh/tWJLMcDsKw7uqbFfyDRdB9GX0RltPgbMFIFfNTV7emE0H+DEtdNnEAJwY6O59eLS/UW3YQX6c3t224hxALP82Xr9uznGAwRENnqmrOZch5wgEMGLgV7cJL48vuBEtE3qkcBVjosJWQymHq2FvsGwljkxOyawhU7DAjL3s7uKtocZTcIVx9CMPIP0p8m7HM++qjVAPEGAU7LL/F4tEl/JngiAEEf+w+Wr/QiluEQLYnu0kkHPZX72ZYCtirCQlbRVBWPKEaViDi+NqkxcblTfqTx9bLkUF2j81DzVAVwdzZalUbZO1lZoFBG6y3YqdPUlM1XwdcU9A95MGvcDvBStpNBfBaAsNW3JHenOYgQ5pIxQvJdLr7IggXP1wFa0Lv1Fbxm69f9KSytwZwfs1CQo/HAcN4vaRGRMVoc5rqx/OyDKOSHXyRjnl6sRWXR5NluKmPnON1WtTQjEthIIZ/DDsCiWWROdZRO9eZQ60xJusbyp9ioycviMEAa5gBuMVd+p1Ggd+GqqnAQfi1EOFDNsyHo+QKJj/d6Hbh+U5UAojYznIX6lVZqU6HvLn+iLo76dfprtxd1BWlN6x81Bpjo1SwxIpfMJgSAnVO9V6cRw0flAMsf/V+O5fmKLEa7hNQ92eV8ZfVSWERL1rrcr4Ki2uG0g1IPTOyTzqFMxNHT9DiOD9PzVaGlvwxnIjjJOCEe/zOUj/NozJujpC3b+TazDJmQSsYZadeAp+is0bKNxeSuIidEaCVtHBXeFkgBAoGQXjZhH0HQrsKcIvGzqXjE9uP5aFavXxIK44tJW0QmcmTOouu9G2LuDu6a3tVGy3w4M0TZFscmR6xt9GX7TIwN+zqHwJZQHEdZOwIPwBflTA7QErYldURHL8rNaH+NfByD8BNbr2ecT83fvjR4R8xuc1TLC/RS+9lH9+uWa9VLs5I2QsXLNFlUqkTgkHe9Oy3v6nQ8VQDvqr2mDLgW7bmufvGjOHbXFKhw7PIh1M7FbuPAWod6Oeoi2yVKmbhuqYyRiXOI9AW9FHCpMTvFRQUBL6Pt5iOKj5dNptFTmFue+TzymU1gyteqozD3DJ64h0zxDZDKtre7Ped7zlwN672H6IYfoFfuuxUqMEL7ll4p+4imvnQhtxF8zFeXlspZY++txAdLGqdQcrHucJiYKAefdfMU0gIRoWz0ccMce/E1sDoxxoh5PKp2Vd6PICukBlcglOoukam6x7JGCUCYDNQp5ru1GkmiyVgkUpzxCTT1dTY92oVwiZrfCgoCNQxpCIliayIgdjUOvdg6GDTwP/gpA+7B/9lP/qtQjv4m1TXdfZKPQuG2wdYIFT1rZKEFQuDTPX6RDNdGWyb5brgicJAS+SIoHYRimyPlnHvlq13QMOVUY5IDp/CRlyi9DMkvyiKndW508qq5p+wTrThX0kAMbPO48aiRLgxXk+kTYgN415bAWiOG5u4XVyWOOwNIX1JqZ6BjA1FeMBzcIvf/JnGdWFFwtZ+llpdXJ2yZ0hvlZvaAPN2cpFET0uOw0Wy/8X9pLwBlhR83+l2/jaBc06fNCmuc4fk6U81oWH/00fl2OyYMkvVo8x2XuFETkcgDgmRvHmNBmiuNfLP9UhmciLNapusFf+IdnhubNmV04lpGBZbpjDHdXagSafwqu2vdAlq2L7gZ+019RWFSwqjKd1seJYuDOVL3ovW2Jn6Ugdh26JYaystig2N3ghg0sLT9oSEvCf/b4RnskEeNrEp8E/mbQuKXFftSNARYGWDnPf1VzBBVr0BzzfJLd+BxkPuJ4QLo1WrZDmj5Tg821hbZ164+OpYwtw5Rv/6tYz/ySe9ObwnChiu+vbHnprvjGO0TyMr3z/+bNPBP0+1qjsIEM5ns4/xWAhblwHCRj4nsGzr+N/LC1fuCBVN2CibINgnXX10xUZgBdGOvdd189IZEa9fzi1NaaMQSmFEoIG575eJ3zBpuXEPVD18kM6MAMEZWUO1Cyg7Kf0D9Cw52kpYdbubYi7FH276GvPiXZk59n/e3vOK7pWBH9gkC47pIHOC9B4oayLkHOFT7gNdHiffWtkvsqRQIUspHBOtd2JAwlhP4R7m1JM2ZqaItiGnTFf1/cWxQUn67qspENkiC28pFwFJTml1wjKlbkHhH+5JhDipZY+NuCMY7CV6P++MP939bkRNc7oZJ1FrK1mbYR6j1zzE2mQhdDT/HFrKHv//t9/t8Gla7g0AB7XKhgtHAdzWSjyYngmPD5ZxBM9KwwKpy0/gKaMsYdxpixs6Ccp3UljHU5JwSwH+pCKWnH2WxfxzzwIGBvt0oXuXJ4UU1tpxo1+2uLcEHMCI5lhjXvM4RR5ztTNklHnvoTL2lLE7J2XXooIfCq7oA7Iy4aJGpwuGw4kmMH519vhoct34/qCOQ9zu44BmzjWHDdjD9lJUMiryk4ipINxSkrgH7Gg13NCg/+ZuayZDjvGPKaL2hDvsR+osm4H+wB7mbae0cvpUPxTvRyapK4eZ9XEAs8VwBUO+HsOMX54P88YudAjgqEpw4ShlxAvx0yjjLElWTdQ3IkFRl9RmXrhTqTM5zRop7UVIdO09RD2qXt29ssx66dpfGcua1vW1itHScPob1qZymB2Uzj7QDpYt/01QW31HHenbn7Z6G6ZGfatbZnjFqmCpcJvL9jLwy9tKyASrtfT1HBxxXUVWB4UitRt4Poryn7bJaaZTsQUvauPuNexxCnYM79huqc3qV6qQP9JCDJJsZKt3C3EOD5D+IcpFz1Hvuh822kL4Hh8XeCnjTXRUaCwfLAx8luUGcqhKTajUcfoiDY2aBOTs3DDf1yCwtTmIeJlaU3hQUNucO/pw6TpkPEoIYm8S3h3RBNHkoaaeVIl///ZxRzHk1e1TWc073jMWKYxeM6T9nEi3J68DWxXvJ4wQTYzhd/DZz6+O3yVjj6FuIMOixCk/GOd7ZwQy8Ae9ULFR4GLCNqf47AimsMSSQUI0b93QI1qk5qPp8VOMDjJNziPub2uyx2BpH096IgmmgbfGXO+EwyVuHvwbrosF/6yUWD5mqHgMRMjI/1Aa2EzlQG5PyHgSE6KQm9PekRdK7xNYj826xXmiUff8YiEG6I1GVZxQ53VZpngZ8I340syIqT54rj7Nym6EPBq5LObHtOOm+V4b24Xyg1pB0GwK3I+MbUQU5Gqesq5Nqoyf0IE45UNLdnyjfiehjTJhcTLxarlxNSt1fa4AeRQCInLik9yAo8JApbgA0VIXA7zfCt0c/O2YC44OOqiA30gAGk0Y8JTLmO9AtDGdSnuJ683OOfV4KmNFV8EEuBhYGwpZIkzDKB6np5T99NJXjMTBm0N2lTu6kW3dlFSKXpaRe1raSBFR9D/EJ3Hz4ZgbUKmjkVgMATCyQVWc2CXLvF3dGtbazM+vYbXHnJHxqekzqj9tYH+i1BTkgfq6xMAmTojGQG26upQ0LPRGgHelNt40VwTInKu6ICKsXn0yGSSsvBs0begXyfQBUp/8adLBv4Aep8SD7zpJCJyzxdIczOKbfwYn2k0u6X6ruo7944IfkkmhV/xGOiSy7J5Ncfc6vbHfhTlbhZ5O9HgDwD12RbfsvSki6Sp32YjKHHkz+5/U+XWv8XT3rP0eet4aUierhe6cgk1GUC2dl1JBANF3b50d9ojkKlmeGzOKZDmDpEtsulEa922ej+d+9jBmprTF4zbO+qIoGdpbiWS7NOenVW25jLqmx7y0W6EciDuyfPV5/ZyABZgDhNz+ag67AoGa3250bXq8rR5ywjVAEt/labg9hrIMSwAJtJUbBHibYCTwavFanPHs0KG0nH4uBebu7zLPXmkXA5Zcyy2ck/D2apHhICIu/TcmQZa3UOr/KS76WZp7U8ll6HVrfd4e+OXlBXyrJW2OBaW99VuL8odNt6neVZLq5x9A9G2endinvXkaCHIhaB6By6Rd2fbR5LdpvsLQ3VLSXPPWmI4sW2pfx7YSIbxrmFbMDBAGV0Jt8XE8kR40Ns/DNbDSD8NBOwVoAO8wTwEaOwQGutBqZ4aYx7ySA5rDTs8rT74Ez39Vw3Q6+fgYp0yvo9nUywBhFdOMSOezt8MhvGiN16LRZw8q8k/ZlbHrXeqIdnAx5Jx5yx7W+9cNEMSHNaRWC7kVjBoqF/9unRWbDoWbrkQ4LBxUuYmPWM9UTNIC/UCCFbv9m84WdaZcOxJ7AGa9/MJFKaI+buB0MrUiV0U4me5yy25+zNqHoMcav/PezHtjn6k3mjpMkDxxsSUNYZzYrJGd3dtGEZXT1p5JEYwcR6r21Ltv3I2VeEEuuKPcuf/ZWwEwFlOuqoc83GJ91PBdxKHBGDIMuBEk7LvI9GMNCWuM0ADIIJFgZYkcLfT3658PM8EPqBJiLOUqePDYBC7SWxkQ+ZNekoGn/jeBnqIfKvFpfbAiJVyr2Q3N7Vsk8ixcuS/E45D2jD20aOiQBhd4xMDmuM65WGYAHuytH0l3Uwy9adbBXR0wdkKDR1nsNvgvFjGTPCjaHau36zwrXTR0xWMfTg4Mea8XrPU92tWS3wSHW5A9wCSe54JJUscWGUEUUcD6hMdBlHKQ2B0e3sVbtJX5oZ7LL1EkHq0U1qoNfI1OzgwCfmHtqzEgt0+Gb/Yrr1loe1jdo5qeOdCskvrgy0xloekE5wOOSdLyKPmwIMxEVsFwsG9LGXNDIvxiPZCeo0BJvm1HZYlmZCJqdDTbl0l3fhFmRCXdWAJ7irVjNtgjKM5QqAX/DvRk/cskmeVTT20iLlnnArrHI/d/NGdcsEM6v3TmeNDzJzACqWwWmqPx1G+TMwex7Q89PnJhteJZsBQyhYPVWwjE6d2VxuuSVAHKG52kPKW/rQJa0Zh5gpgZPY8NWeSrcpY9YK6dKJ6P4iSJvKJZuUYZXWNtT9A8DFnaatPhXEWozYW4bl4aN9mGZKmhvIOOtwxC6yDN3TwcrzpRMa4Gl6OsMaacfQvBlJUxhvkZllU3zKKSVio0NCsgyNddepy97ixnEN5yZZpdcYUug9TQ8cFkAvf1s1OZxYPXZLobWOuKtDyR5uAdIVABNbT4IP4fqk+zYpnJbAz+iLlvH6avfl2VpcSFajgDHlex0Sx/cvjedAmXLY2sTw4AiWDkNO5fRfAtkNDGAkzNVRI6ZZZKsI2p+fQJjNUSeHteTfrbVGx+4uYZN3E1bEEIs7sNDClW8jhk0QofZz7YmfqpzdEP16+bMLohA2bQb/wn/0IjYwNItHexOSiMzHIaD+xSJkbt0NOWK8bgu6RawoeDjD9lKlCK9GyrCAYd3ZOIXnTUGCSEdEcuM01bXqFlM+sjD7M9u8bQMYo6SRQXYeAQUGDzAL7SMoJJZg5/wNex4+hkVCRkz0xsfc/lyK8k9i58ezZfe0E4Qmq7vY5/vbzaF29GkaNGOfithFq+3ClzhLLgbkVE6J4tBW13y4ILnHLB/1i9EB9motC+p8GP4D4+/rO7YTrEs+LnQ8lDMiboBhChrsPq4jTRv/ra2w3ALNDAfhegsEENuU4gUp6IekIRx/v1XUGyZ/zS676xXd4hZWd+MGZ/NLkNL/o10C5po8CGsx4PWCOpy2+7YSi6plxsWehh6G/22rwzQMFLddWi79E9CI0y0Lq7W6N/homnu+1J+7e8Zjw23yPfsm7by4xiLuKUwePMB5UosUl5atkKolkAvX0Dtw+kJfSG9r+fI8nXHN6l6P9Ex9tpjn0VMgeKoHO6NN9y/fYbKJu785SCtJnxKF71w+9LZQRDmNvmd6YW+NfpfJzZdAIkj4GAF8H829w7ImT5hoXZ5Fx28p4I8EpLTyrgCmKaunhhLrxtDJ9Eve/KsoozMc2B7KkecYvxlzvEHGr6HbOYlDotqSi0m8chPJbjJ8ZZL2mL4+gpbUKbVsHyZMYHAz5bowxiQoVGTXzNjGIEjAAQs9w8Ow8R5Y6QnKNa5fKMeykJiuU+a40iwQWWgxew80GEUtRiw3Egt3SSAZV2BU6XgDkByf/H4n9WzJG6EasJcVxCbU5jiK0KU8mGFgl1Vbvb+SI/8dg8U6QJltB+/0/VurU3Ub68Dl6yXVNlHfDlhA3u420wIpcFlt5v6pj4+MIDNXfwqkThpxanXiGmmXcOQMN+9A3eppPDE78szmBynerb6I1u2CrnnEVsMsW31cgpYcx9Igpasy0Hz9KkXPfdPDT1rbxGpz8ON9DDtZtKUFhHmlbtAiLoKehBO4op/tiF+n+Fkt2F381BB233iCQnZDPdHuLO7YkuwEC1YBi5s82OsrOz2vGHTwF81/B4WTHmBGwHrFyEeQOEYXcHIKjATPGNChjif/Lt+U1+zZp+85wUNqnO0nyuEskE3uRUlGK9JADpP80xPZXyW03LVlDxiapyOIP/fyDnDViCWw7NVkQAzZNesTP3xZ/VJKw+b4FFh8I785tFSEUWoVK4Csba0Ml7BzTFTwg8lnyoynNs8GjCUrTVt0FcTWRjolqflwyVTDe4WvCw9h9xyQZgVZpSzSd9IaYRI+oaw2WvFFTkCWoOuuw5C7DI3/eJVOEQw07bjKgWeXP359A0slJTpIQVuCuCK9hXIThmIJAkSwfVwpVwsLgQ0KHrsQMjtp5hMfwFriUdHCtjyOHd9g0br81og62qjZAYkWvlCVANWgNdytTQyA76cpOBrH7oByoTPxvd+az0Qv/UkbAW0GwTl10081i/gVN9fq7LQpdZ3EOavsL9NxZXmHljveSFiB4jYMLV+u4b/Ph+xAcOsh8rIyA97v6mTQ3/eEG1o/MxoLlvUxUO+h5+gpWlPR+YIAW3e9W4WuYNiJLPUOC5DbJakgd+EeIC4G30zqeRFG5HjqAZXMNx4DJSvtes+7Me8ngVt70hLs2/5W9bAuOeLdtb4oZnohs59khvUbFueCqk8hasu0JyeGjxf4fXjZZRtY56bz6DBpLA9xifhZuNi+VvhBOLzRGDxWI6bCoEMYSVg6AY3zZFohvvh4FdLo/9g+xjgeXMTZbVycXJgaFqw8FECWLbvKp8ekk+W//hRWF3DWvKlowU8cpEfUfQ7Gpuj4j4V+B0BcG3nCfmKLJF8+mqZT+KW8Kv2dMrOKjRrGznMd+Hh3eOZizBN9vUOMwOL/Co2hB6JjapmQSPry00tIsoaqdOOfXZKZZd++qdety6KKf/qqK4oC9sKctrBa+7EZF3FTixDcx5jAOcLWZfqpKmUfmgb0wSZ4tza+wmpHOPhjSv7qEqGhQxlLoVOcOFYSWRjq0pMfHameXcEheqxQ45/wEDm1M/NX/dIBrp1MGFZlsHNWgu2i2bx3jd/aSIIeVKYJa+b/V1+dPsqITBXiUyS5m55hjygfYOHoArt5Id0/XwQDXQgGduQ115HmTiaOIqisb8tSAQYED2sh+ABvtspPEjdkL+0B5oOFWL71GdVO+o57tjmFyQg0wZb/xdfRFCwRFztSTw2ACPWP+gCNhFsIwogHQmxSI97lPzC0AuuBgrypSzet6Kqwvoa6y5h4pcPHmKOTqYQECTqIfAWZJMNoHaV8Gb4+L6CfzMMd9F41jJ3s+zWEc+V/2M9JZ7ELM/hcetWrZ6WD6nWlAsBm9cBBLn0VwZChzzSnuuLCe5zgAw+FDLtGEDwN4VILR893zAPM++/t07Nubfhaw+8j5Uz8VTvzF5DBxnvGqaItIow1NArczU3NSV3UWfGDGVcXAQWxi2sThGP6ahdP8pZT5TwE4LkOeZtt8aep/HadximIEV/yhfucAAAAAISiCyqCOcGTjON8sGCCWPiGgJOe8pTpy6WWlfI1Vv3oqeFQgbxu41nAc3TAho5LdlZWW44qZxAJGA7zMcIL3gAAAAAAAAC6J+h5V502HGEMBLGXuIYTXERBAL2yDVl46k3Bn8KsVVJR8NN2/IwdrSvs2LgK4h21uEFcIh981voZB39RuLI4iiLD4CaNJJMDL+XsyrVXn5yCvBuTSMwxVZfq4MFlA3zbgzOyg3WKufNy2ais+OI0h1qMl6N0OmtFJg9pD0KGSlIFl3C641XFDdWbdoiLBkN3tmLXOZsdkpGIoNgZToyZ7yzGLRfctShyPog3f/aqjj1p5hj1tzEs9dOj8a5G8JBD7R0aYy4awLzLMdErP+6/okXLtVNaJNOfhBgp8RY3D4b7MnSI1XgkfbMefFV/Y2ws3djmiHKQjYfbngCMH4t4GrTnMSGIPGNNry8k9jMHTtUmiLcBcNEYeLv8QVH1noLr1edggvuuSFTPlLrJRuqFzjmjAzf8amFnZa2RnHfSyIRYxcQFVEsrq86GQJGZ9gQpwjwbz1acUikvBCndqZztcX2vnEzW6WI9VOB2aWzbETF5y+R05bpZO8VA3bl7SbA33GQ5ugIcT4mDY9z9uLoU60IYyI3KqfCKh/yvpYkO7vEm+BDuVNIYc6BZPnj8casQCxDwQjK/1feJDghBVue/WAxZ1S4mAGdtT6wcXDyCAe1qxcdm7l2dlz8TBkcQAwvYqJizdABy13tQGeQCGGNVNBQUFxnhbt3o9NCbjStbbuU4a29mOdcHTgkxzAnZ9QRRkab8Gi1dE1XD4QciMNYOea6yGc2nVGiEpf8tizK5wRic5KdzmUJa1klaJq49D62ZX49wg1BsjedbQVDD0gaPs7OtoG7EFOxxSPMnc1EMygCUUddxaql/FoNGacKy/1GRmjvDOQzg3ufNLMTOGZVOXqvsq8YAoHgHvsfT1H4xOR96+VlOotT7qcdxMLKLcS+rwoLc0aZ/GOxLsdMa53EHpIbjC2dxb7KybHjSTviePJT8//+fgOa4aFB7kIxWkV04AAABhHZ4ko8xaJBzl5ZAfhfwNzCEbR2VS7zGbNL9SB683DVVEqWlv/WZJBSpaW/9ZkkF//4My6Vyx/24AazwQAAAAAAAAAAAA==)}
+.lgo{display:block;width:min(100%,330px);height:86px;background:var(--logo-claro) left center/contain no-repeat}
+.load::before{content:"";display:block;width:270px;height:70px;margin:0 auto 14px;background:var(--logo-claro) center/contain no-repeat}
+</style>
+
+<canvas id="stage" tabindex="0" aria-label="Pitch de SolPrende en 3D: edificio, panel solar, gráficos y mercado"></canvas>
+<div id="labels"></div>
+<div id="tags"></div>
+<div id="fade"></div>
+<aside class="side guion" id="guion" aria-live="polite">
+  <div class="who"><b id="ini"></b><span><small>Presenta</small><strong id="who"></strong></span></div>
+  <div class="when" id="num"></div>
+  <ul id="say"></ul>
+  <h3 id="rowsH">En esta lámina</h3>
+  <div class="rows" id="rows"></div>
+</aside>
+<aside class="side datos d" id="datos" aria-live="polite"></aside>
+<div class="float">
+  <div class="read" id="read" hidden></div>
+  <div class="seg" id="mode" hidden role="group" aria-label="Momento del día"><button type="button" data-m="day" aria-pressed="true">Día</button><button type="button" data-m="night" aria-pressed="false">Noche</button></div>
+  <div class="legend" id="legend" hidden><span><b style="background:var(--sol)"></b>Energía del sol</span><span><b style="background:var(--red)"></b>Energía de la red</span></div>
+</div>
+<nav class="bar" aria-label="Láminas de la presentación">
+  <button class="btn" id="prev" type="button" aria-label="Lámina anterior">←</button>
+  <div class="txt"><span id="ttl"></span><span id="sub"></span></div>
+  <div class="dots" id="dots"></div>
+  <button class="btn opt" id="play" type="button" aria-label="Reproducir sola" aria-pressed="false" title="Reproducir sola (P)">▶</button>
+  <button class="btn opt" id="home" type="button" aria-label="Volver a la vista de la lámina" title="Volver a la vista de la lámina">⌂</button>
+  <button class="btn opt" id="fs" type="button" aria-label="Pantalla completa" title="Pantalla completa (F)">⤢</button>
+  <button class="btn next" id="next" type="button" aria-label="Lámina siguiente">Siguiente →</button>
+</nav>
+<div class="load" id="load">Cargando el modelo…</div>
+
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.181.2/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.181.2/examples/jsm/"}}</script>
+<script type="module">
+// SolPrende · presentación 3D. Edificio en corte, cableado, flujo de energía y panel por partes.
+// Editable: PASOS (guion), ETIQUETAS (textos y fichas), CAPAS (panel), y las funciones build*.
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+
+const C = { noche: "#0B2650", azul: "#0166B0", sol: "#F5B404", ahorro: "#3E7D10", fondo: "#F5F8FB", red: "#6DB3E8",
+  blanco: "#FFFFFF", hueso: "#EEF2F6", claro: "#E7EEF5", gris: "#C3D1DF", grisOsc: "#6A829A", tinte: "#C9E0F4",
+  pasto: "#9CC4AE", follaje: "#3B7A5E", follaje2: "#5A9479", madera: "#C9AE8A", panel: "#13304F" };
+const $ = (s) => document.querySelector(s);
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// ---------- motor ----------
+const canvas = $("#stage");
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.NeutralToneMapping;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const scene = new THREE.Scene();
+const BG_DAY = new THREE.Color(C.fondo), BG_NIGHT = new THREE.Color("#0B1E33"), BG_PAPER = new THREE.Color("#F5E2BE");
+renderer.localClippingEnabled = true;
+const clip = new THREE.Plane(new THREE.Vector3(0, -1, 0), 99);   // lo sólido aparece detrás de este plano: así el plano en líneas "se materializa"
+scene.background = BG_DAY.clone();
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.55;
+const camera = new THREE.PerspectiveCamera(30, 1, 0.3, 900);
+const controls = new OrbitControls(camera, canvas);
+Object.assign(controls, { enableDamping: true, dampingFactor: 0.08, maxPolarAngle: Math.PI * 0.495, screenSpacePanning: true, autoRotateSpeed: 0.7, zoomSpeed: 0.8 });
+const key = new THREE.DirectionalLight("#FFFFFF", 2.4);
+key.position.set(40, 85, 70); key.target.position.set(0, 15, 0); key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+Object.assign(key.shadow.camera, { left: -55, right: 55, top: 60, bottom: -30, near: 1, far: 260 });
+key.shadow.bias = -0.0004; key.shadow.normalBias = 0.05; key.shadow.radius = 4;
+const hemi = new THREE.HemisphereLight("#F7FAFD", "#C9D6E2", 1.1);
+scene.add(key, key.target, hemi);
+
+// ---------- utilidades de modelado (todo se instancia por material) ----------
+const mats = {};
+function mat(color, o = {}) { const k = color + JSON.stringify(o); return mats[k] || (mats[k] = new THREE.MeshStandardMaterial({ color, roughness: 0.82, metalness: 0, ...o })); }
+const glow = (color) => mats["g" + color] || (mats["g" + color] = new THREE.MeshBasicMaterial({ color, toneMapped: false }));
+const UNIT = new THREE.BoxGeometry(1, 1, 1), UCYL = new THREE.CylinderGeometry(1, 1, 1, 24), USPH = new THREE.SphereGeometry(1, 16, 12);
+const pending = new Map(); let mid = 0;
+function put(parent, geo, m, sx, sy, sz, x, y, z, rx = 0, shadow = true) {
+  if (!m._k) m._k = ++mid;
+  const k = parent.uuid + geo.uuid + m._k + shadow;
+  if (!pending.has(k)) pending.set(k, { parent, geo, m, shadow, it: [] });
+  pending.get(k).it.push([sx, sy, sz, x, y, z, rx]);
+}
+// caja con base en y; cilindro vertical con base en y
+const box = (p, w, h, d, m, x, y, z, shadow = true, rx = 0) => put(p, UNIT, m, w, h, d, x, y + h / 2, z, rx, shadow);
+const cyl = (p, r, h, m, x, y, z, shadow = true) => put(p, UCYL, m, r, h, r, x, y + h / 2, z, 0, shadow);
+// Además de las mallas, flush() junta las aristas de cada pieza: con ellas se dibuja el plano en líneas.
+const EDGES = new Map(), planSrc = new Map();   // escenario (B o PS) -> tramos [clave de orden, ax, ay, az, bx, by, bz]
+const edgesOf = (geo) => EDGES.get(geo) || EDGES.set(geo, new THREE.EdgesGeometry(geo, 30).attributes.position.array).get(geo);
+EDGES.set(UCYL, [...edgesOf(UCYL), ...[[1, 0], [-1, 0], [0, 1], [0, -1]].flatMap(([x, z]) => [x, -0.5, z, x, 0.5, z])]);   // a los cilindros se les suman 4 generatrices: sin ellas un poste sería solo dos aros
+function flush() {
+  const o = new THREE.Object3D(), a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), d = new THREE.Vector3(), M = new THREE.Matrix4();
+  pending.forEach(({ parent, geo, m, shadow, it }) => {
+    const mesh = new THREE.InstancedMesh(geo, m, it.length);
+    let root = parent; while (root.parent && root.parent !== scene) root = root.parent;
+    const plan = parent !== roofG && planSrc.get(root), e = edgesOf(geo), ax = root === PS ? "x" : "y", piece = root === PS ? 0.19 : 3;
+    parent.updateWorldMatrix(true, false);
+    it.forEach((q, i) => {
+      o.position.set(q[3], q[4], q[5]); o.rotation.set(q[6], 0, 0); o.scale.set(q[0], q[1], q[2]); o.updateMatrix(); mesh.setMatrixAt(i, o.matrix);
+      if (!plan) return;
+      M.multiplyMatrices(parent.matrixWorld, o.matrix);
+      for (let j = 0; j < e.length; j += 6) {     // las aristas largas se cortan en trozos para que crezcan al dibujarse
+        a.set(e[j], e[j + 1], e[j + 2]).applyMatrix4(M); b.set(e[j + 3], e[j + 4], e[j + 5]).applyMatrix4(M);
+        const n = Math.max(1, Math.ceil(a.distanceTo(b) / piece));
+        for (let k = 0; k < n; k++) { c.lerpVectors(a, b, k / n); d.lerpVectors(a, b, (k + 1) / n); plan.push([(c[ax] + d[ax]) / 2, c.x, c.y, c.z, d.x, d.y, d.z]); }
+      }
+    });
+    mesh.castShadow = shadow; mesh.receiveShadow = true; mesh.frustumCulled = false; parent.add(mesh);
+  });
+  pending.clear();
+}
+const plans = [], planMat = new THREE.LineBasicMaterial({ color: C.noche, transparent: true });
+function buildPlans() {
+  planSrc.forEach((src, root) => {
+    src.sort((p, q) => p[0] - q[0]);
+    const pos = new Float32Array(src.length * 6), keys = new Float32Array(src.length);
+    src.forEach((s, i) => { keys[i] = s[0]; pos.set(s.slice(1), i * 6); });
+    const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    const ln = new THREE.LineSegments(g, planMat); ln.frustumCulled = false; ln.userData.plan = true; root.add(ln);
+    plans.push({ ln, keys, lo: keys[0], hi: keys[keys.length - 1], n: 0, thr: 0 });
+  });
+  // todo lo sólido queda sujeto al plano de corte (las líneas del plano no)
+  [B, PS].forEach((r) => r.traverse((ob) => { if (ob.userData.plan || !ob.material) return; [].concat(ob.material).forEach((m) => { m.clippingPlanes = [clip]; m.clipShadows = true; }); }));
+}
+function setPlan(draw, op) {
+  plans.forEach((p) => {
+    p.thr = p.lo + draw * (p.hi - p.lo) + 1e-3; let lo = 0, hi = p.keys.length;
+    while (lo < hi) { const m = (lo + hi) >> 1; p.keys[m] <= p.thr ? (lo = m + 1) : (hi = m); }
+    p.n = lo; p.ln.geometry.setDrawRange(0, lo * 2); p.ln.visible = op > 0.01 && lo > 0;
+  });
+  planMat.opacity = op;
+}
+function tex(w, h, draw) { const c = document.createElement("canvas"); c.width = w; c.height = h; draw(c.getContext("2d"), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; }
+const picks = [];   // volúmenes invisibles que reciben el clic
+function pick(parent, id, w, h, d, x, y, z) {
+  const m = new THREE.Mesh(UNIT, new THREE.MeshBasicMaterial({ visible: false }));
+  m.scale.set(w, h, d); m.position.set(x, y + h / 2, z); m.userData.part = id; parent.add(m); picks.push(m); return m;
+}
+
+// ---------- edificio ----------
+const T = { x0: -9, x1: 9, z0: -5, z1: 5, G: 4.2, fh: 3, floors: 12 };
+const R = T.G + T.floors * T.fh;      // altura del techo
+const ZP = 0.72, ZA = 0.86;            // planos donde corren los cables (muro del núcleo): continua y alterna
+const B = new THREE.Group(); scene.add(B);                 // escenario "edificio"
+const core = new THREE.Group(), facade = new THREE.Group(), site = new THREE.Group(), roofG = new THREE.Group(); B.add(site, core, facade, roofG);   // roofG: los paneles, que "se instalan" bajando al techo
+planSrc.set(B, []);
+let groundMat, sunMesh, haloMesh, cabin;
+
+// el edificio viene de Blender (blender/edificio.py), con las mismas medidas que usan cables, etiquetas y clics
+const fmats = [];   // [material de la fachada, opacidad base]
+function buildBuilding(gl) {
+  const take = (name, grp) => { const n = gl.scene.getObjectByName(name); [...n.children].forEach((c) => grp.add(c)); };
+  take("site", site); take("core", core); take("facade", facade); take("roof", roofG);
+  cabin = new THREE.Group(); take("cabin", cabin); core.add(cabin);
+  B.traverse((o) => { if (!o.isMesh) return; o.castShadow = o.receiveShadow = true;
+    if (o.material.transparent) o.castShadow = false; });
+  facade.traverse((o) => { if (o.isMesh && !fmats.some((q) => q[0] === o.material)) { fmats.push([o.material, o.material.opacity]); o.material.transparent = true; } });
+  groundMat = new THREE.ShadowMaterial({ opacity: 0.07 });
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(900, 900), groundMat);
+  floor.rotation.x = -Math.PI / 2; floor.position.y = -0.62; floor.receiveShadow = true; floor.userData.noPlan = true; B.add(floor);
+  sunMesh = new THREE.Mesh(new THREE.SphereGeometry(2.3, 48, 32), glow(C.sol)); sunMesh.position.set(17, 25, -3); sunMesh.userData.noPlan = true; B.add(sunMesh);
+  haloMesh = new THREE.Mesh(new THREE.RingGeometry(3.0, 3.22, 64), new THREE.MeshBasicMaterial({ color: C.sol, transparent: true, opacity: 0.55, toneMapped: false, side: THREE.DoubleSide }));
+  haloMesh.position.copy(sunMesh.position); haloMesh.userData.noPlan = true; B.add(haloMesh);
+  // volúmenes de clic
+  pick(site, "red", 3, 9, 3, -15.3, 0, 3);
+  [-5.9, 5.9].forEach((bx) => pick(roofG, "paneles", 4.9, 1.2, 9.4, bx, R, 0));
+  pick(core, "inversor", 1.1, 1.6, 0.6, -3.9, 1.2, 0.9); pick(core, "tablero", 1.5, 2.1, 0.6, -5.9, 1.0, 0.9); pick(core, "medidor", 0.9, 1.2, 0.6, -7.8, 1.4, 0.9);
+  pick(core, "ascensor", 2.8, R, 2.8, 0, 0, -0.8); pick(core, "bomba", 2.6, 2, 1.6, 4.7, 0.2, 2.0);
+  [-1, 1].forEach((s) => pick(core, "deptos", 6.2, R - T.G, 9.6, s * 5.7, T.G, 0));
+  pick(core, "luces", 0.7, R, 1.5, -2.1, 0, 3.2);
+  planFromMeshes(B, "y", 3);
+}
+
+// ---------- cableado y flujo ----------
+class Poly {
+  constructor(pts) { this.p = pts.map((a) => new THREE.Vector3(...a)); this.cum = [0]; for (let i = 1; i < this.p.length; i++) this.cum.push(this.cum[i - 1] + this.p[i].distanceTo(this.p[i - 1])); this.len = this.cum[this.cum.length - 1]; }
+  at(s, out) { s = Math.max(0, Math.min(this.len, s)); let i = 1; while (i < this.cum.length - 1 && this.cum[i] < s) i++; const t = (s - this.cum[i - 1]) / (this.cum[i] - this.cum[i - 1] || 1); return out.copy(this.p[i - 1]).lerp(this.p[i], t); }
+}
+// Cada tramo: de dónde sale la energía hacia dónde va, de día. tipo: "cc" paneles→inversor, "red" enlace con la distribuidora, "ca" bienes comunes.
+const PATHS = [];
+// start = distancia recorrida (en metros) a la que empieza a dibujarse el tramo
+const P = (id, tipo, start, pts) => { const o = { id, tipo, start, poly: new Poly(pts) }; PATHS.push(o); return o; };
+function definePaths() {
+  const J = [-2.15, R + 0.2, 1.4], yT = 3.55, end = (o) => o.start + o.poly.len;
+  P("ccL", "cc", 0, [[-3.3, R + 0.2, 3.9], [-3.3, R + 0.2, 1.4], J]);
+  const ccR = P("ccR", "cc", 0, [[3.3, R + 0.2, 3.9], [3.3, R + 0.2, 1.4], J]);
+  const cc = P("cc", "cc", end(ccR), [J, [-2.15, R + 0.2, ZP], [-2.15, 0.9, ZP], [-3.9, 0.9, ZP], [-3.9, 1.35, ZP]]);
+  const it = P("it", "cc", end(cc), [[-4.35, 2.0, ZP], [-5.25, 2.0, ZP]]);
+  const tm = P("tm", "red", end(it), [[-6.55, 2.0, ZP], [-7.45, 2.0, ZP]]);
+  P("mg", "red", end(tm), [[-8.15, 2.0, ZP], [-8.55, 2.0, ZP], [-8.55, 0.5, ZP], [-9.7, 0.5, ZP], [-9.7, 0.25, ZP], [-14.9, 0.25, ZP], [-14.9, 0.25, 3], [-14.9, 7.85, 3], [-27, 7.85, 3]]);
+  const trunk = P("trunk", "ca", end(it), [[-5.9, 2.95, ZA], [-5.9, yT, ZA], [-1.7, yT, ZA]]);
+  const riser = P("riser", "ca", end(trunk), [[-1.7, yT, ZA], [-1.7, R + 1.3, ZA]]);
+  P("pump", "ca", end(trunk), [[-1.7, yT, ZA], [4.4, yT, ZA], [4.4, 1.2, ZA], [4.4, 1.2, 1.6]]);
+  P("hall", "ca", trunk.start + 0.6 + 3.52, [[-2.38, yT, ZA], [-2.38, yT, 3.2], [-2.38, 2.9, 3.2]]);
+  for (let f = 0; f < T.floors; f++) { const yb = T.G + f * T.fh + 1.78; P("l" + f, "ca", riser.start + (yb - yT), [[-1.7, yb, ZA], [-2.38, yb, ZA], [-2.38, yb, 3.2]]); }
+  return Math.max(...PATHS.map(end));
+}
+let WIRE_D = 1, segMesh, jointMesh, flowMesh; const segs = [], joints = [], parts = [];
+function buildCables() {
+  WIRE_D = definePaths();
+  const up = new THREE.Vector3(0, 1, 0);
+  PATHS.forEach((p) => p.poly.p.forEach((a, i) => {
+    joints.push({ pos: a, at: p.start + p.poly.cum[i] });
+    if (i === 0) return; const b = p.poly.p[i - 1], dir = a.clone().sub(b), len = dir.length(); dir.normalize();
+    segs.push({ a: b, dir, len, at: p.start + p.poly.cum[i - 1], q: new THREE.Quaternion().setFromUnitVectors(up, dir) });
+  }));
+  const cm = mat(C.noche, { roughness: 0.5 });
+  segMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(1, 1, 1, 10), cm, segs.length);
+  jointMesh = new THREE.InstancedMesh(USPH, cm, joints.length);
+  [segMesh, jointMesh].forEach((m) => { m.frustumCulled = false; B.add(m); });
+  PATHS.forEach((p) => { const n = Math.max(1, Math.round(p.poly.len / 1.5)); for (let i = 0; i < n; i++) parts.push({ p, u: i / n }); });
+  flowMesh = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 12, 10), new THREE.MeshBasicMaterial({ color: "#FFFFFF", toneMapped: false }), parts.length);
+  flowMesh.frustumCulled = false; B.add(flowMesh);
+}
+const _o = new THREE.Object3D(), _v = new THREE.Vector3(), CR = 0.13;
+function setWire(frac) {
+  const D = frac * WIRE_D;
+  segs.forEach((s, i) => { const l = Math.max(0, Math.min(s.len, D - s.at)); _o.position.copy(s.a).addScaledVector(s.dir, l / 2); _o.quaternion.copy(s.q); _o.scale.set(l > 0 ? CR : 0, Math.max(l, 1e-4), l > 0 ? CR : 0); _o.updateMatrix(); segMesh.setMatrixAt(i, _o.matrix); });
+  _o.quaternion.identity();
+  joints.forEach((j, i) => { const s = D >= j.at ? CR * 1.25 : 0; _o.position.copy(j.pos); _o.scale.setScalar(s); _o.updateMatrix(); jointMesh.setMatrixAt(i, _o.matrix); });
+  segMesh.instanceMatrix.needsUpdate = jointMesh.instanceMatrix.needsUpdate = true;
+}
+// De día todo parte en los paneles y el excedente sale a la red. De noche los paneles no generan y la red entra por el medidor.
+const COL_SOL = new THREE.Color(C.sol), COL_RED = new THREE.Color(C.red);
+function setFlow(time, on, night) {
+  _o.quaternion.identity();
+  parts.forEach((q, i) => {
+    const t = q.p.tipo, active = on && !(night && t === "cc"), rev = night && t === "red";
+    if (!active) { _o.scale.setScalar(0); _o.position.set(0, -50, 0); }
+    else { let u = (q.u + (time * 5) / q.p.poly.len) % 1; if (rev) u = 1 - u; q.p.poly.at(u * q.p.poly.len, _v); _o.position.copy(_v); _o.scale.setScalar(0.21); }
+    _o.updateMatrix(); flowMesh.setMatrixAt(i, _o.matrix); flowMesh.setColorAt(i, night ? COL_RED : COL_SOL);
+  });
+  flowMesh.instanceMatrix.needsUpdate = true; if (flowMesh.instanceColor) flowMesh.instanceColor.needsUpdate = true;
+}
+
+// ---------- escenario "panel": un panel solar armado que se separa por capas ----------
+const PS = new THREE.Group(); PS.visible = false; scene.add(PS); planSrc.set(PS, []);
+const PL = 2.28, PW = 1.13;
+// c: texto corto para la lista de la lámina; info: texto completo al seleccionar la pieza
+const CAPAS = [
+  { id: "vidrio", name: "Vidrio templado", a: 0.046, e: 1.4, c: "Protege las celdas y deja pasar la luz.", info: "Es la cara que mira al sol. Protege las celdas de la lluvia y el granizo, y deja pasar la luz." },
+  { id: "eva1", name: "Encapsulante frontal", a: 0.036, e: 0.9, c: "Sella las celdas por delante y las amortigua.", info: "Lámina transparente que sella las celdas por delante y las amortigua frente a golpes y vibraciones." },
+  { id: "celdas", name: "Celdas fotovoltaicas", a: 0.028, e: 0.38, c: "Convierten la luz del sol en electricidad.", info: "Son el corazón del panel: convierten la luz del sol en electricidad de corriente continua." },
+  { id: "eva2", name: "Encapsulante posterior", a: 0.02, e: -0.14, c: "Sella las celdas por detrás.", info: "Sella las celdas por detrás. Junto con la lámina frontal, las deja aisladas de la humedad." },
+  { id: "lamina", name: "Lámina posterior", a: 0.012, e: -0.64, c: "Aísla y protege del agua y del calor.", info: "Cierra el panel por atrás. Aísla eléctricamente y protege del agua y del calor." },
+  { id: "marco", name: "Marco de aluminio", a: 0, e: -1.14, c: "Da rigidez y permite fijarlo al techo.", info: "Da rigidez al conjunto y permite fijar el panel a la estructura del techo." },
+  { id: "caja", name: "Caja de conexiones", a: -0.03, e: -1.66, c: "Entrega la electricidad hacia el inversor.", info: "Reúne la electricidad de todas las celdas y la entrega por dos cables hacia el inversor." },
+];
+let disc; const soft = [];   // [material, opacidad armado, opacidad separado]
+// el panel viene de Blender (blender/panel.py): un nodo por capa, con su origen en 0
+function buildPanel(gl) {
+  CAPAS.forEach((c) => {
+    const n = gl.scene.getObjectByName(c.id); n.position.set(0, c.a, 0); PS.add(n); c.g = n;
+    n.traverse((o) => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; } });
+  });
+  const softOf = (id, a, b) => CAPAS.find((c) => c.id === id).g.traverse((o) => { if (o.isMesh) { const m = o.material; m.transparent = true; m.depthWrite = false; if (!soft.some((q) => q[0] === m)) soft.push([m, a, b]); } });
+  softOf("vidrio", 0.1, 0.3); softOf("eva1", 0.04, 0.6); softOf("eva2", 0.04, 0.6);
+  // contorno en las láminas claras, para que se lean sobre el fondo al separarlas
+  ["vidrio", "eva1", "eva2", "lamina"].forEach((id) => { const g = CAPAS.find((c) => c.id === id).g, b = new THREE.Box3().setFromObject(g), sz = b.getSize(new THREE.Vector3());
+    const l = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(sz.x, sz.y, sz.z)), new THREE.LineBasicMaterial({ color: C.noche, transparent: true, opacity: 0.5 })); l.position.y = (b.min.y + b.max.y) / 2 - g.position.y; g.add(l); });
+  CAPAS.forEach((c) => pick(c.g, c.id, PL, c.id === "caja" ? 0.1 : 0.07, PW, 0, -0.035, 0));
+  disc = new THREE.Mesh(new THREE.CylinderGeometry(2.3, 2.3, 0.05, 64), mat(C.blanco)); disc.receiveShadow = true; PS.add(disc);
+  planFromMeshes(PS, "x", 0.19);
+}
+// aristas de las mallas importadas para el plano en líneas
+function planFromMeshes(root, ax, piece) {
+  const plan = planSrc.get(root), a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), d = new THREE.Vector3();
+  root.updateMatrixWorld(true);
+  root.traverse((o) => {
+    if (!o.isMesh || o.isInstancedMesh || o.material.visible === false || o === disc || o.userData.noPlan) return;
+    const e = new THREE.EdgesGeometry(o.geometry, 25).attributes.position.array;
+    for (let j = 0; j < e.length; j += 6) {
+      a.set(e[j], e[j + 1], e[j + 2]).applyMatrix4(o.matrixWorld); b.set(e[j + 3], e[j + 4], e[j + 5]).applyMatrix4(o.matrixWorld);
+      const n = Math.max(1, Math.ceil(a.distanceTo(b) / piece));
+      for (let k = 0; k < n; k++) { c.lerpVectors(a, b, k / n); d.lerpVectors(a, b, (k + 1) / n); plan.push([(c[ax] + d[ax]) / 2, c.x, c.y, c.z, d.x, d.y, d.z]); }
+    }
+  });
+}
+function setExplode(e) { CAPAS.forEach((c) => (c.g.position.y = c.a + (c.e - c.a) * e)); disc.position.y = -0.75 - 1.55 * e; soft.forEach(([m, a, b]) => (m.opacity = a + (b - a) * e)); }
+
+// ---------- lámina 9: el sistema antiguo, un cable a cada departamento ----------
+let oldMesh; const oldMat = new THREE.MeshStandardMaterial({ color: "#B3261E", roughness: 0.6, transparent: true });
+function buildOld() {
+  const z = 4.4, pts = [[[0, 0.3, z], [0, R - 1, z]]];
+  for (let f = 0; f < T.floors; f++) { const y = T.G + f * T.fh + 2.2; pts.push([[-7.4, y, z], [7.4, y, z]]); }
+  oldMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.17, 0.17, 1, 8), oldMat, pts.length + T.floors * 2);
+  const up = new THREE.Vector3(0, 1, 0), a = new THREE.Vector3(), b = new THREE.Vector3(); let i = 0;
+  pts.forEach(([p, q]) => { a.set(...p); b.set(...q); const d = b.clone().sub(a); _o.position.copy(a).addScaledVector(d, 0.5); _o.quaternion.setFromUnitVectors(up, d.clone().normalize()); _o.scale.set(1, d.length(), 1); _o.updateMatrix(); oldMesh.setMatrixAt(i++, _o.matrix); });
+  _o.quaternion.identity();
+  for (let f = 0; f < T.floors; f++) [-1, 1].forEach((s) => { _o.position.set(s * 7.4, T.G + f * T.fh + 2.2, z + 0.2); _o.scale.set(3, 0.7, 3); _o.updateMatrix(); oldMesh.setMatrixAt(i++, _o.matrix); });   // un medidor por departamento
+  oldMesh.frustumCulled = false; B.add(oldMesh);
+}
+
+// ---------- lámina 5: flujo de caja acumulado, original vs. con reducción de costos (tarea 8) ----------
+const CH = new THREE.Group(); CH.visible = false; scene.add(CH);
+// millones de pesos, años 0 a 5 (planilla de la tarea 8, hojas Flujo_Original y Flujo_Reduccion)
+const FLUJO = { orig: [-5.13, -11.33, -24.98, -37.87, -49.95, -58.53], red: [-4.85, -4.12, -8.78, -9.54, -5.33, 4.65] };
+const KY = 0.3, chartBars = [], CHX = (i) => (i - 2.5) * 3.4;
+function buildChart() {
+  const back = new THREE.Mesh(new THREE.BoxGeometry(22, 22, 0.1), mat(C.hueso)); back.position.set(0, -7.5, -1.8); back.receiveShadow = true; CH.add(back);
+  [-20, -40, -60].forEach((v) => { const l = new THREE.Mesh(new THREE.BoxGeometry(21, 0.03, 0.03), mat(C.gris)); l.position.set(0, v * KY, -1.7); CH.add(l); });
+  const zero = new THREE.Mesh(new THREE.BoxGeometry(21.5, 0.08, 3.4), mat(C.noche)); zero.position.set(0, 0, 0); CH.add(zero);   // línea de $0
+  const g = new THREE.BoxGeometry(1.25, 1, 1.25);
+  for (let i = 0; i < 6; i++) [["orig", -0.75, "#9AA9B8"], ["red", 0.75, C.azul]].forEach(([k, dx, col]) => {
+    const v = FLUJO[k][i], m = new THREE.Mesh(g, mat(v > 0 ? C.ahorro : col, { roughness: 0.5 })); m.castShadow = m.receiveShadow = true; CH.add(m);
+    chartBars.push({ m, v, x: CHX(i) + dx, i });
+  });
+}
+function setGrow(gr) {
+  chartBars.forEach(({ m, v, x, i }) => {
+    const k = Math.max(0, Math.min(1, gr * 8 - i * 1.2)), h = Math.max(1e-3, Math.abs(v) * KY * k);   // las barras crecen año por año
+    m.scale.y = h; m.position.set(x, Math.sign(v) * h / 2, 0); m.visible = k > 0;
+  });
+}
+
+// ---------- lámina 3: el modelo de negocios como diagrama 3D (quién paga a quién y qué ajustamos) ----------
+const NG = new THREE.Group(); NG.visible = false; scene.add(NG);
+const NOD = { adm: [-12, 0, 0], edi: [-4, 0, 0], fin: [5, 0, -6], sol: [5, 0, 5] };
+const ngNodes = [], ngFlows = [], ngBars = [];
+const nmats = {}, nmat = (c, o = {}) => nmats[c + JSON.stringify(o)] || (nmats[c + JSON.stringify(o)] = new THREE.MeshStandardMaterial({ color: c, roughness: 0.82, metalness: 0, ...o }));   // propios: los de mat() llevan el plano de corte del edificio
+const AJUSTES = [{ x: -10, a: 790, b: 710 }, { x: 0, a: 40, b: 15 }, { x: 10, a: 95, b: 86 }];   // $/Wp, horas de venta, % del arriendo al financista
+function buildNegocio() {
+  const add = (o, g, m, x, y, z) => { const ms = new THREE.Mesh(g, m); ms.position.set(x, y, z); ms.castShadow = ms.receiveShadow = true; o.add(ms); return ms; };
+  const disc = new THREE.Mesh(new THREE.CylinderGeometry(15.5, 15.5, 0.12, 72), nmat(C.blanco)); disc.position.set(-2, -0.06, 3); disc.receiveShadow = true; NG.add(disc);
+  const node = (k, t0) => { const g = new THREE.Group(); g.position.set(...NOD[k]); NG.add(g); ngNodes.push({ g, t0 }); return g; };
+  let g = node("edi", 0.4);                                     // edificio: torre con pisos y paneles en el techo
+  add(g, new THREE.BoxGeometry(3.2, 9, 3.2), nmat(C.noche), 0, 4.5, 0);
+  for (let y = 1.2; y < 9; y += 1.2) add(g, new THREE.BoxGeometry(3.3, 0.12, 3.3), nmat(C.blanco), 0, y, 0);
+  for (let i = 0; i < 3; i++) add(g, new THREE.BoxGeometry(0.85, 0.1, 2.6), nmat(C.panel, { roughness: 0.3 }), -1 + i, 9.25, 0).rotation.z = 0.25;
+  g = node("adm", 1.2);                                         // administradora: oficina
+  add(g, new THREE.BoxGeometry(4, 4, 3), nmat(C.azul), 0, 2, 0); add(g, new THREE.BoxGeometry(1, 1.8, 0.1), nmat(C.blanco), 0, 0.9, 1.55);
+  g = node("fin", 7.5);                                         // financista: banco con columnas y frontón
+  add(g, new THREE.BoxGeometry(6, 0.5, 4.4), nmat(C.blanco), 0, 0.25, 0);
+  for (let i = 0; i < 4; i++) add(g, new THREE.CylinderGeometry(0.32, 0.32, 3.2, 16), nmat(C.blanco), -2.1 + i * 1.4, 2.1, 1.6);
+  add(g, new THREE.BoxGeometry(5.2, 3.2, 2.6), nmat(C.hueso), 0, 2.1, -0.5); add(g, new THREE.BoxGeometry(6, 0.45, 4.4), nmat(C.blanco), 0, 3.9, 0);
+  const ped = add(g, new THREE.CylinderGeometry(1.6, 1.6, 4.4, 3), nmat(C.azul), 0, 4.9, 0); ped.rotation.x = -Math.PI / 2; ped.scale.x = 1.9;
+  g = node("sol", 7.5);                                         // SolPrende: el sol de la marca
+  add(g, new THREE.CylinderGeometry(1.7, 1.9, 1.2, 40), nmat(C.blanco), 0, 0.6, 0);
+  add(g, new THREE.SphereGeometry(1.7, 40, 24), nmat(C.sol, { emissive: C.sol, emissiveIntensity: 0.35, roughness: 0.4 }), 0, 3, 0);
+  add(g, new THREE.TorusGeometry(2.5, 0.12, 12, 64), nmat(C.sol, { emissive: C.sol, emissiveIntensity: 0.3 }), 0, 3, 0).rotation.x = Math.PI / 2;
+  // flujos: arco + monedas que avanzan en el sentido del pago
+  const coinG = new THREE.CylinderGeometry(0.5, 0.5, 0.14, 28);
+  [["adm", "edi", C.azul, 3, 4], ["fin", "edi", C.sol, 8.5, 7], ["edi", "sol", C.ahorro, 11.5, 7], ["sol", "fin", C.sol, 14.5, 5]].forEach(([a, b, col, t0, h]) => {
+    const A = new THREE.Vector3(...NOD[a]).setY(1.2), Bv = new THREE.Vector3(...NOD[b]).setY(1.2);
+    const M = A.clone().lerp(Bv, 0.5).setY(h), cv = new THREE.QuadraticBezierCurve3(A, M, Bv);
+    const tube = new THREE.Mesh(new THREE.TubeGeometry(cv, 60, 0.08, 8), nmat(col, { roughness: 0.6 })); NG.add(tube);
+    const coins = Array.from({ length: 6 }, () => { const c = new THREE.Mesh(coinG, nmat(col, { metalness: 0.3, roughness: 0.35 })); c.castShadow = true; NG.add(c); return c; });
+    ngFlows.push({ cv, tube, coins, t0 });
+  });
+  // qué ajustamos: barra fantasma = antes, barra sólida = ahora (se encoge)
+  AJUSTES.forEach((q, i) => {
+    const ghost = add(NG, new THREE.BoxGeometry(2.6, 1, 2.6), nmat("#9AA9B8", { transparent: true, opacity: 0.35 }), q.x, 0, 13);
+    const bar = add(NG, new THREE.BoxGeometry(2.2, 1, 2.2), nmat(i === 2 ? C.ahorro : C.azul, { roughness: 0.5 }), q.x, 0, 13);
+    ngBars.push({ ghost, bar, t0: 20 + i * 6, r: q.b / q.a });
+  });
+}
+function setNegocio(t, tc) {
+  const k = (t0, d = 1.2) => ease(Math.max(0, Math.min(1, (tc - t0) / d)));
+  ngNodes.forEach(({ g, t0 }) => { const v = Math.max(1e-3, k(t0)); g.scale.set(1, v, 1); g.visible = v > 0.01; });
+  ngFlows.forEach(({ cv, tube, coins, t0 }) => {
+    const v = k(t0, 1.4); tube.geometry.setDrawRange(0, Math.floor(v * 60) * 8 * 6); tube.visible = v > 0;
+    coins.forEach((c, j) => { const u = (t * 0.16 + j / coins.length) % 1; c.visible = v >= 1; c.position.copy(cv.getPointAt(u)); c.position.y += 0.35; c.rotation.z = t * 2 + j; });
+  });
+  ngBars.forEach(({ ghost, bar, t0, r }) => {
+    const up = k(19), h = 5 * up * (1 - (1 - r) * k(t0 + 1.5, 1.6));
+    ghost.scale.y = Math.max(1e-3, 5 * up); ghost.position.y = 2.5 * up; bar.scale.y = Math.max(1e-3, h); bar.position.y = h / 2;
+    ghost.visible = bar.visible = up > 0;
+  });
+}
+
+// ---------- lámina 8: recursos (alianzas), métricas (medidores) y riesgos (el escudo del edificio) ----------
+const RG = new THREE.Group(); RG.visible = false; scene.add(RG);
+const ALI = [[-9, 0, -4, 0.8], [9, 0, -4, 2.8], [-8, 0, 6, 4.8], [8, 0, 6, 6.8]];   // financista, instaladores, administradoras, abogado: x, y, z, segundo
+const MED = [-9, -3, 3, 9], RZ = 30, RIE = [[-5, 21.5], [0, 26.5], [5, 31.5]];   // medidores en z = 15; riesgos sobre el escudo en z = RZ
+const rgNodes = [], rgBeams = [], rgGauges = [], rgSigns = []; let rgDome = null;
+function buildRecursos() {
+  const add = (o, g, m, x, y, z) => { const ms = new THREE.Mesh(g, m); ms.position.set(x, y, z); ms.castShadow = ms.receiveShadow = true; o.add(ms); return ms; };
+  [0, 15, RZ].forEach((z) => { const d = new THREE.Mesh(new THREE.CylinderGeometry(z === 15 ? 15 : 13, z === 15 ? 15 : 13, 0.12, 72), nmat(C.blanco)); d.position.set(0, -0.06, z); d.receiveShadow = true; RG.add(d); });
+  const node = (x, z, t0) => { const g = new THREE.Group(); g.position.set(x, 0, z); RG.add(g); rgNodes.push({ g, t0, t1: 9.8 }); return g; };
+  let g = node(0, 0, 0.2);                                      // SolPrende al centro
+  add(g, new THREE.CylinderGeometry(1.7, 1.9, 1.2, 40), nmat(C.blanco), 0, 0.6, 0);
+  add(g, new THREE.SphereGeometry(1.7, 40, 24), nmat(C.sol, { emissive: C.sol, emissiveIntensity: 0.35, roughness: 0.4 }), 0, 3, 0);
+  add(g, new THREE.TorusGeometry(2.5, 0.12, 12, 64), nmat(C.sol, { emissive: C.sol, emissiveIntensity: 0.3 }), 0, 3, 0).rotation.x = Math.PI / 2;
+  g = node(ALI[0][0], ALI[0][2], ALI[0][3]);                    // socio financista: banco
+  add(g, new THREE.BoxGeometry(6, 0.5, 4.4), nmat(C.blanco), 0, 0.25, 0);
+  for (let i = 0; i < 4; i++) add(g, new THREE.CylinderGeometry(0.32, 0.32, 3.2, 16), nmat(C.blanco), -2.1 + i * 1.4, 2.1, 1.6);
+  add(g, new THREE.BoxGeometry(5.2, 3.2, 2.6), nmat(C.hueso), 0, 2.1, -0.5); add(g, new THREE.BoxGeometry(6, 0.45, 4.4), nmat(C.blanco), 0, 3.9, 0);
+  const ped = add(g, new THREE.CylinderGeometry(1.6, 1.6, 4.4, 3), nmat(C.azul), 0, 4.9, 0); ped.rotation.x = -Math.PI / 2; ped.scale.x = 1.9;
+  g = node(ALI[1][0], ALI[1][2], ALI[1][3]);                    // instaladores SEC: panel en su soporte y casco
+  add(g, new THREE.CylinderGeometry(0.18, 0.18, 2.4, 12), nmat(C.grisOsc), 0, 1.2, 0);
+  add(g, new THREE.BoxGeometry(4.2, 0.14, 2.8), nmat(C.panel, { roughness: 0.3 }), 0, 2.6, 0).rotation.x = -0.55;
+  add(g, new THREE.SphereGeometry(0.75, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), nmat(C.sol), 2.2, 0, 1.4);
+  add(g, new THREE.CylinderGeometry(0.95, 0.95, 0.08, 24), nmat(C.sol), 2.2, 0.04, 1.4);
+  g = node(ALI[2][0], ALI[2][2], ALI[2][3]);                    // administradoras: oficina
+  add(g, new THREE.BoxGeometry(4, 4, 3), nmat(C.azul), 0, 2, 0); add(g, new THREE.BoxGeometry(1, 1.8, 0.1), nmat(C.blanco), 0, 0.9, 1.55);
+  g = node(ALI[3][0], ALI[3][2], ALI[3][3]);                    // abogado de copropiedad: balanza
+  add(g, new THREE.CylinderGeometry(1.1, 1.3, 0.4, 32), nmat(C.noche), 0, 0.2, 0);
+  add(g, new THREE.CylinderGeometry(0.14, 0.14, 4, 12), nmat(C.noche), 0, 2.2, 0);
+  add(g, new THREE.BoxGeometry(4.2, 0.16, 0.16), nmat(C.noche), 0, 4.1, 0);
+  [-1.9, 1.9].forEach((x) => { add(g, new THREE.CylinderGeometry(0.03, 0.03, 1.3, 6), nmat(C.grisOsc), x, 3.45, 0); add(g, new THREE.CylinderGeometry(0.85, 0.6, 0.18, 28), nmat(C.sol), x, 2.75, 0); });
+  // haces desde SolPrende hacia cada alianza, con pulsos que viajan
+  const dotG = new THREE.SphereGeometry(0.22, 14, 10);
+  ALI.forEach(([x, , z, t0]) => {
+    const A = new THREE.Vector3(0, 3, 0), Bv = new THREE.Vector3(x * 0.8, 2.2, z * 0.8), cv = new THREE.QuadraticBezierCurve3(A, A.clone().lerp(Bv, 0.5).setY(4.6), Bv);
+    const tube = new THREE.Mesh(new THREE.TubeGeometry(cv, 50, 0.07, 8), nmat(C.azul, { roughness: 0.6 })); RG.add(tube);
+    const dots = Array.from({ length: 4 }, () => { const d = new THREE.Mesh(dotG, nmat(C.sol, { emissive: C.sol, emissiveIntensity: 0.5 })); RG.add(d); return d; });
+    rgBeams.push({ cv, tube, dots, t0: t0 + 0.6 });
+  });
+  // medidores: la aguja barre hasta la zona verde de la meta
+  MED.forEach((x, i) => {
+    const gg = new THREE.Group(); gg.position.set(x, 0, 15); RG.add(gg);
+    add(gg, new THREE.BoxGeometry(5.4, 0.6, 1.4), nmat(C.hueso), 0, 0.3, 0);
+    add(gg, new THREE.TorusGeometry(2.4, 0.3, 10, 48, Math.PI), nmat(C.gris), 0, 1.3, 0);
+    const okM = new THREE.MeshStandardMaterial({ color: C.ahorro, roughness: 0.5, emissive: C.ahorro, emissiveIntensity: 0 });
+    add(gg, new THREE.TorusGeometry(2.4, 0.36, 10, 16, Math.PI * 0.32), okM, 0, 1.3, 0.02);
+    const piv = new THREE.Group(); piv.position.set(0, 1.3, 0.35); gg.add(piv);
+    add(piv, new THREE.BoxGeometry(0.16, 2.3, 0.12), nmat(C.noche), 0, 1.15, 0);
+    add(gg, new THREE.SphereGeometry(0.32, 20, 12), nmat(C.noche), 0, 1.3, 0.35);
+    rgGauges.push({ g: gg, piv, okM, t0: 10.2 + i * 2.4, i });
+  });
+  // riesgos: señales de alerta que caen sobre el escudo y quedan mitigadas (pasan a verde)
+  const bld = new THREE.Group(); bld.position.set(0, 0, RZ); RG.add(bld); rgNodes.push({ g: bld, t0: 19.4 });
+  add(bld, new THREE.BoxGeometry(3, 6.4, 3), nmat(C.noche), 0, 3.2, 0);
+  for (let y = 1.1; y < 6.4; y += 1.05) add(bld, new THREE.BoxGeometry(3.1, 0.1, 3.1), nmat(C.blanco), 0, y, 0);
+  for (let i = 0; i < 3; i++) add(bld, new THREE.BoxGeometry(0.8, 0.1, 2.4), nmat(C.panel, { roughness: 0.3 }), -0.95 + i * 0.95, 6.6, 0).rotation.z = 0.25;
+  const domeM = new THREE.MeshStandardMaterial({ color: C.azul, transparent: true, opacity: 0.16, roughness: 0.2, emissive: C.azul, emissiveIntensity: 0, depthWrite: false, side: THREE.DoubleSide });
+  rgDome = new THREE.Mesh(new THREE.SphereGeometry(6.5, 48, 24, 0, Math.PI * 2, 0, Math.PI / 2), domeM); rgDome.position.set(0, 0, RZ); RG.add(rgDome);
+  add(rgDome, new THREE.TorusGeometry(6.5, 0.12, 10, 72), nmat(C.azul), 0, 0.1, 0).rotation.x = Math.PI / 2;
+  RIE.forEach(([x, t0]) => {
+    const sg = new THREE.Group(); RG.add(sg);
+    const m = new THREE.MeshStandardMaterial({ color: C.sol, roughness: 0.45 });
+    const tri = add(sg, new THREE.CylinderGeometry(1.35, 1.35, 0.3, 3), m, 0, 0, 0); tri.rotation.set(Math.PI / 2, Math.PI / 3, 0);
+    add(sg, new THREE.BoxGeometry(0.2, 0.62, 0.1), nmat(C.noche), 0, 0.12, 0.18); add(sg, new THREE.BoxGeometry(0.2, 0.18, 0.1), nmat(C.noche), 0, -0.4, 0.18);
+    rgSigns.push({ sg, m, x, t0, y1: Math.sqrt(6.5 * 6.5 - x * x - 9) + 1.1 });   // caen frente al edificio (z + 3)
+  });
+}
+const RGcol = new THREE.Color(), RGsol = new THREE.Color(C.sol), RGok = new THREE.Color(C.ahorro);
+function setRecursos(t, tc) {
+  const k = (t0, d = 1.2) => ease(Math.max(0, Math.min(1, (tc - t0) / d)));
+  rgNodes.forEach(({ g, t0, t1 = 1e9 }) => { const v = Math.max(1e-3, k(t0) * (1 - k(t1, 0.8))); g.scale.set(1, v, 1); g.visible = v > 0.01; });
+  rgBeams.forEach(({ cv, tube, dots, t0 }) => {
+    const v = k(t0, 1.2); tube.geometry.setDrawRange(0, Math.floor(v * 50) * 8 * 6); tube.visible = v > 0;
+    tube.visible = v > 0 && tc < 9.8;
+    dots.forEach((d, j) => { d.visible = v >= 1 && tc < 9.8; d.position.copy(cv.getPointAt((t * 0.3 + j / dots.length) % 1)); });
+  });
+  rgGauges.forEach(({ g, piv, okM, t0, i }) => {
+    const sc = Math.max(1e-3, k(9 + i * 0.25, 0.9) * (1 - k(20, 0.8))); g.scale.set(1, sc, 1); g.visible = sc > 0.01;   // los medidores aparecen al llegar la cámara
+    const v = k(t0, 1.6), land = Math.max(0, Math.min(1, (tc - t0 - 1.6) / 1.2));
+    piv.rotation.z = Math.PI / 2 - v * Math.PI * 0.85 + Math.sin(land * Math.PI * 3) * 0.06 * (1 - land);   // de la izquierda a la zona verde, con un pequeño rebote
+    okM.emissiveIntensity = land > 0 && land < 1 ? 0.6 * Math.sin(land * Math.PI) : 0;
+  });
+  const up = k(20.5, 1.4); rgDome.scale.set(Math.max(1e-3, up), Math.max(1e-3, up), Math.max(1e-3, up)); rgDome.visible = up > 0.01;
+  let flash = 0;
+  rgSigns.forEach(({ sg, m, x, t0, y1 }) => {
+    const v = k(t0, 1.8), hitT = tc - t0 - 1.8, ok = Math.max(0, Math.min(1, hitT / 0.8));
+    sg.visible = tc > t0; sg.position.set(x, 17 - (17 - y1) * v, RZ + 3); sg.rotation.y = (1 - v) * 4;
+    m.color.copy(RGcol.copy(RGsol).lerp(RGok, ok)); if (hitT > 0 && hitT < 1) flash = Math.max(flash, Math.sin(hitT * Math.PI));
+  });
+  rgDome.material.emissiveIntensity = 0.7 * flash; rgDome.material.opacity = 0.16 + 0.18 * flash;
+}
+
+// ---------- lámina 9: lo que pedimos (capital en monedas, tramo verde para 10 edificios, 80 edificios al año 5) ----------
+const QG = new THREE.Group(); QG.visible = false; scene.add(QG);
+const QZ = 34, qParts = [], qCoins = [], qTowers = []; let qBeam = null, qSun = null, qGrid = null, qRoofs = null;
+function buildPedimos() {
+  const add = (o, g, m, x, y, z) => { const ms = new THREE.Mesh(g, m); ms.position.set(x, y, z); ms.castShadow = ms.receiveShadow = true; o.add(ms); return ms; };
+  [[0, 11], [15, 14], [QZ, 17]].forEach(([z, r]) => { const d = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.12, 72), nmat(C.blanco)); d.position.set(0, -0.06, z); d.receiveShadow = true; QG.add(d); });
+  const part = (t0, t1) => { const g = new THREE.Group(); QG.add(g); qParts.push({ g, t0, t1 }); return g; };
+  // 1) $10 M en 25 monedas de $0,4 M: 12 amarillas (puesta en marcha) y 13 azules (caja hasta el año 3)
+  const pa = part(0, 12.2), coinG = new THREE.CylinderGeometry(1.5, 1.5, 0.26, 40);
+  for (let j = 0; j < 25; j++) qCoins.push({ m: add(pa, coinG, nmat(j < 12 ? C.sol : C.azul, { metalness: 0.3, roughness: 0.35 }), 0, 0, 0), y: 0.13 + j * 0.28, t0: 0.6 + j * 0.2 });
+  add(pa, new THREE.CylinderGeometry(2.1, 2.3, 0.3, 40), nmat(C.hueso), 0, 0.15, 0).position.y = -0.1;
+  // 2) financiamiento verde: banco → 10 edificios de 2027
+  const pb = part(12.2, 24.4);
+  const bank = new THREE.Group(); bank.position.set(-8, 0, 15); pb.add(bank);
+  add(bank, new THREE.BoxGeometry(6, 0.5, 4.4), nmat(C.blanco), 0, 0.25, 0);
+  for (let i = 0; i < 4; i++) add(bank, new THREE.CylinderGeometry(0.32, 0.32, 3.2, 16), nmat(C.blanco), -2.1 + i * 1.4, 2.1, 1.6);
+  add(bank, new THREE.BoxGeometry(5.2, 3.2, 2.6), nmat(C.hueso), 0, 2.1, -0.5); add(bank, new THREE.BoxGeometry(6, 0.45, 4.4), nmat(C.blanco), 0, 3.9, 0);
+  const ped = add(bank, new THREE.CylinderGeometry(1.6, 1.6, 4.4, 3), nmat(C.ahorro), 0, 4.9, 0); ped.rotation.x = -Math.PI / 2; ped.scale.x = 1.9;
+  for (let j = 0; j < 10; j++) {
+    const tw = new THREE.Group(); tw.position.set(1 + (j % 5) * 2.6, 0, 13 + Math.floor(j / 5) * 3.6); pb.add(tw);
+    add(tw, new THREE.BoxGeometry(1.6, 4, 1.6), nmat(C.noche), 0, 2, 0);
+    const roof = add(tw, new THREE.BoxGeometry(1.5, 0.14, 1.3), nmat(C.sol, { emissive: C.sol, emissiveIntensity: 0.4, roughness: 0.4 }), 0, 4.15, 0); roof.rotation.z = 0.2;
+    qTowers.push({ roof, t0: 15 + j * 0.55 });
+  }
+  const A = new THREE.Vector3(-8, 4.6, 15), Bv = new THREE.Vector3(5.5, 4.6, 14.8), cv = new THREE.QuadraticBezierCurve3(A, new THREE.Vector3(-1.5, 9, 15), Bv);
+  const tube = new THREE.Mesh(new THREE.TubeGeometry(cv, 60, 0.09, 8), nmat(C.ahorro, { roughness: 0.6 })); pb.add(tube);
+  const dots = Array.from({ length: 6 }, () => { const c = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.12, 24), nmat(C.ahorro, { metalness: 0.3, roughness: 0.35 })); pb.add(c); return c; });
+  qBeam = { cv, tube, dots, t0: 13.6 };
+  // 3) 80 edificios al año 5 (10 × 8), suben en ola desde el centro; luego sale el sol
+  const N = 80, box = new THREE.BoxGeometry(1.5, 1, 1.5), pan = new THREE.BoxGeometry(1.4, 0.12, 1.2);
+  qGrid = new THREE.InstancedMesh(box, nmat(C.noche), N); qRoofs = new THREE.InstancedMesh(pan, nmat(C.sol, { emissive: C.sol, emissiveIntensity: 0.4, roughness: 0.4 }), N);
+  qGrid.castShadow = qGrid.receiveShadow = true; qGrid.userData.cells = [];
+  for (let j = 0; j < N; j++) { const x = (j % 10 - 4.5) * 2.5, z = QZ + (Math.floor(j / 10) - 3.5) * 2.5; qGrid.userData.cells.push({ x, z, h: 2.5 + ((j * 37) % 7) * 0.5, t0: 24.6 + Math.hypot(x, z - QZ) * 0.1 }); }
+  QG.add(qGrid, qRoofs); qGrid.frustumCulled = qRoofs.frustumCulled = false;
+  qSun = new THREE.Group(); QG.add(qSun);
+  add(qSun, new THREE.SphereGeometry(2.6, 40, 24), nmat(C.sol, { emissive: C.sol, emissiveIntensity: 0.5, roughness: 0.4 }), 0, 0, 0);
+  add(qSun, new THREE.TorusGeometry(3.8, 0.16, 12, 64), nmat(C.sol, { emissive: C.sol, emissiveIntensity: 0.4 }), 0, 0, 0).rotation.x = Math.PI / 2.4;
+}
+const qM = new THREE.Matrix4(), qQ = new THREE.Quaternion(), qP = new THREE.Vector3(), qS = new THREE.Vector3();
+function setPedimos(t, tc) {
+  const k = (t0, d = 1.2) => ease(Math.max(0, Math.min(1, (tc - t0) / d)));
+  qParts.forEach(({ g, t0, t1 }) => { const v = Math.max(1e-3, k(t0, 0.6) * (1 - k(t1, 0.8))); g.scale.set(1, v, 1); g.visible = v > 0.01; });
+  qCoins.forEach(({ m, y, t0 }) => { const v = k(t0, 0.5); m.visible = tc > t0; m.position.y = y + (1 - v) * 9; m.rotation.y = (1 - v) * 3; });
+  qTowers.forEach(({ roof, t0 }) => { roof.visible = tc > t0; roof.scale.setScalar(Math.max(1e-3, k(t0, 0.5))); });
+  const bv = k(qBeam.t0, 1.4); qBeam.tube.geometry.setDrawRange(0, Math.floor(bv * 60) * 8 * 6);
+  qBeam.dots.forEach((c, j) => { c.visible = bv >= 1 && tc < 24; c.position.copy(qBeam.cv.getPointAt((t * 0.18 + j / 6) % 1)); c.position.y += 0.3; c.rotation.z = t * 2 + j; });
+  qGrid.userData.cells.forEach(({ x, z, h, t0 }, j) => {
+    const v = Math.max(1e-3, k(t0, 0.9)), hh = h * v;
+    qGrid.setMatrixAt(j, qM.compose(qP.set(x, hh / 2, z), qQ, qS.set(1, hh, 1)));
+    const r = k(t0 + 1.2, 0.5); qRoofs.setMatrixAt(j, qM.compose(qP.set(x, hh + 0.1, z), qQ, qS.set(Math.max(1e-3, r), 1, Math.max(1e-3, r))));
+  });
+  qGrid.instanceMatrix.needsUpdate = qRoofs.instanceMatrix.needsUpdate = true;
+  const on = tc > 24.4; qGrid.visible = qRoofs.visible = on;
+  const su = k(38.8, 2.4); qSun.visible = su > 0; qSun.position.set(0, -3 + su * 15, QZ - 12); qSun.rotation.y = t * 0.4;
+}
+
+// ---------- lámina 7: hoja de ruta como escalera de etapas con barreras que se abren al cumplir la meta ----------
+const HG = new THREE.Group(); HG.visible = false; scene.add(HG);
+const HX = [-20, -10, 0, 10, 26], HY = [0.6, 1.6, 2.6, 3.6, 0.6];   // centro y altura de cada etapa (la 4 es Valparaíso, al otro lado del mar)
+const HOPEN = [12, 21, 30], HHOP = [[12.8, 0, 1], [21.8, 1, 2], [30.8, 2, 3], [46, 3, 4]];
+const hGates = []; let hTow = null, hRoof = null, hMark = null, hArc = null, hVal = null;
+function buildRuta() {
+  const add = (o, g, m, x, y, z) => { const ms = new THREE.Mesh(g, m); ms.position.set(x, y, z); ms.castShadow = ms.receiveShadow = true; o.add(ms); return ms; };
+  const ground = new THREE.Mesh(new THREE.BoxGeometry(70, 0.1, 22), nmat(C.blanco)); ground.position.set(3, -0.05, 0); ground.receiveShadow = true; HG.add(ground);
+  add(HG, new THREE.BoxGeometry(4, 0.08, 22), nmat(C.red, { roughness: 0.2 }), 17.5, 0.02, 0);   // el mar antes de Valparaíso
+  HX.slice(0, 4).forEach((x, i) => { add(HG, new THREE.BoxGeometry(8.5, HY[i], 8.5), nmat(C.hueso), x, HY[i] / 2, 0); add(HG, new THREE.BoxGeometry(8.6, 0.06, 8.6), nmat(C.claro), x, HY[i] + 0.03, 0); });
+  hVal = new THREE.Group(); hVal.position.set(HX[4], 0, 0); HG.add(hVal);
+  add(hVal, new THREE.BoxGeometry(8.5, HY[4], 8.5), nmat(C.hueso), 0, HY[4] / 2, 0);
+  [[-2.5, -3, 3], [1.5, -3.2, 3.8], [3.5, -2.6, 2.6]].forEach(([x, z, h]) => add(hVal, new THREE.ConeGeometry(2, h, 24), nmat(C.pasto), x, HY[4] + h / 2, z));
+  // barreras entre etapas: se levantan y pasan a verde cuando se cumple la meta
+  HOPEN.forEach((t0, i) => {
+    const gx = HX[i] + 5, top = HY[i + 1], gm = new THREE.MeshStandardMaterial({ color: C.sol, roughness: 0.5 }), lm = new THREE.MeshStandardMaterial({ color: C.sol, emissive: C.sol, emissiveIntensity: 0.6 });
+    [-2.6, 2.6].forEach((z) => add(HG, new THREE.CylinderGeometry(0.16, 0.16, top + 2.6, 12), nmat(C.noche), gx, (top + 2.6) / 2, z));
+    add(HG, new THREE.SphereGeometry(0.34, 18, 12), lm, gx, top + 2.9, 2.6);
+    const piv = new THREE.Group(); piv.position.set(gx, top + 2.4, -2.6); HG.add(piv);
+    add(piv, new THREE.BoxGeometry(0.26, 0.26, 5.2), gm, 0, 0, 2.6);
+    hGates.push({ piv, gm, lm, t0 });
+  });
+  // edificios: 3, 10, 35 y 80 en las etapas 0 a 3, y 8 por venir en Valparaíso
+  const cells = [], grid = (i, n, cols, sp, t0, dt) => { for (let j = 0; j < n; j++) cells.push({ x: HX[i] + ((j % cols) - (cols - 1) / 2) * sp, z: (Math.floor(j / cols) - (Math.ceil(n / cols) - 1) / 2) * sp, y: HY[i], h: (i === 0 ? 2 : 1) + ((j * 37) % 7) * 0.22, t0: t0 + j * dt, on: i < 4 }); };
+  grid(0, 3, 3, 2.2, 6, 1); grid(1, 10, 4, 1.7, 15, 0.25); grid(2, 35, 6, 1.15, 23, 0.08); grid(3, 80, 9, 0.82, 32, 0.04); grid(4, 8, 4, 1.7, 47.5, 0.2);
+  const n = cells.length;
+  hTow = new THREE.InstancedMesh(new THREE.BoxGeometry(0.62, 1, 0.62), nmat(C.noche), n); hTow.castShadow = hTow.receiveShadow = true;
+  hRoof = new THREE.InstancedMesh(new THREE.BoxGeometry(0.58, 0.1, 0.58), nmat(C.blanco, { roughness: 0.4 }), n);
+  const col = new THREE.Color();
+  cells.forEach((c, j) => hRoof.setColorAt(j, col.set(c.on ? C.sol : C.gris)));
+  hTow.userData.cells = cells; HG.add(hTow, hRoof); hTow.frustumCulled = hRoof.frustumCulled = false;   // la esfera de recorte se calcula con las torres aún en cero
+  // el sol de SolPrende avanza de etapa en etapa
+  hMark = new THREE.Group(); HG.add(hMark);
+  add(hMark, new THREE.SphereGeometry(0.9, 32, 20), nmat(C.sol, { emissive: C.sol, emissiveIntensity: 0.5, roughness: 0.4 }), 0, 0, 0);
+  add(hMark, new THREE.TorusGeometry(1.35, 0.08, 10, 48), nmat(C.sol, { emissive: C.sol, emissiveIntensity: 0.4 }), 0, 0, 0).rotation.x = Math.PI / 2.4;
+  const cv = new THREE.QuadraticBezierCurve3(new THREE.Vector3(HX[3] + 4, HY[3] + 0.3, 0), new THREE.Vector3(18, 9, 0), new THREE.Vector3(HX[4] - 4, HY[4] + 0.3, 0));
+  hArc = new THREE.Mesh(new THREE.TubeGeometry(cv, 60, 0.1, 8), nmat(C.azul, { roughness: 0.6 })); HG.add(hArc);
+}
+const hM = new THREE.Matrix4(), hQ = new THREE.Quaternion(), hP = new THREE.Vector3(), hS = new THREE.Vector3(), hOK = new THREE.Color(C.ahorro), hSol = new THREE.Color(C.sol);
+const hCount = () => Math.max(0, Math.min(80, Math.floor((stepClock - 32) / 0.04) + 1));
+function setRuta(t, tc) {
+  const k = (t0, d = 1.2) => ease(Math.max(0, Math.min(1, (tc - t0) / d)));
+  hTow.userData.cells.forEach(({ x, y, z, h, t0 }, j) => {
+    const v = Math.max(1e-3, k(t0, 0.6)), hh = h * v;
+    hTow.setMatrixAt(j, hM.compose(hP.set(x, y + hh / 2, z), hQ, hS.set(v, hh, v)));
+    hRoof.setMatrixAt(j, hM.compose(hP.set(x, y + hh + 0.05, z), hQ, hS.setScalar(v > 0.99 ? 1 : 1e-3)));
+  });
+  hTow.instanceMatrix.needsUpdate = hRoof.instanceMatrix.needsUpdate = true;
+  hGates.forEach(({ piv, gm, lm, t0 }) => { const v = k(t0, 1); piv.rotation.x = -Math.PI / 2 * v; gm.color.copy(hSol).lerp(hOK, v); lm.color.copy(gm.color); lm.emissive.copy(gm.color); });
+  let i = 0, x = HX[0], y = HY[0] + 4;
+  for (const [a, f, to] of HHOP) {
+    if (tc < a) break;
+    const u = ease(Math.min(1, (tc - a) / 1.4)); i = to;
+    x = HX[f] + (HX[to] - HX[f]) * u; y = HY[f] + (HY[to] - HY[f]) * u + 4 + Math.sin(u * Math.PI) * 3;
+  }
+  hMark.position.set(x, y + Math.sin(t * 2) * 0.15, 0); hMark.rotation.y = t * 0.6; hMark.scale.setScalar(Math.max(1e-3, k(0.4, 0.8)));
+  const av = k(45.6, 1.4); hArc.geometry.setDrawRange(0, Math.floor(av * 60) * 8 * 6); hArc.visible = av > 0;
+  const vv = Math.max(1e-3, k(46.4, 1)); hVal.scale.set(1, vv, 1); hVal.visible = vv > 0.01;
+}
+
+// ---------- lámina 8: los prototipos en pantalla ----------
+const DV = new THREE.Group(); DV.visible = false; scene.add(DV);
+const imgTex = (src) => { const t = new THREE.TextureLoader().load(src); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; };
+// notebook y celular modelados en Blender (blender/extras.py); las pantallas reciben las capturas
+function buildDevices(gl) {
+  const disc = new THREE.Mesh(new THREE.CylinderGeometry(7.5, 7.5, 0.12, 64), mat(C.blanco)); disc.position.y = -0.06; disc.receiveShadow = true; DV.add(disc);
+  ["notebook", "celular", "pantalla_web", "pantalla_app"].forEach((n) => DV.add(gl.scene.getObjectByName(n)));
+  DV.traverse((o) => { if (o.isMesh) o.castShadow = o.receiveShadow = true; });
+  [["pantalla_web", "web.jpg"], ["pantalla_app", "app.jpg"]].forEach(([n, src]) => DV.getObjectByName(n).traverse((o) => {
+    if (!o.isMesh) return; const t = imgTex(src); t.flipY = false; o.material = new THREE.MeshBasicMaterial({ map: t, toneMapped: false }); o.castShadow = false;
+  }));
+}
+
+// ---------- láminas 10 y 11: una ciudad de edificios para el TAM, SAM y SOM ----------
+const CT = new THREE.Group(); CT.visible = false; scene.add(CT);
+let cityMesh, cityRoof; const city = [];
+const COL = { tam: new THREE.Color("#C9D6E2"), sam: new THREE.Color(C.azul), som: new THREE.Color(C.sol), dim: new THREE.Color("#E3EAF1") };
+// tres tipos de torre de Blender (blender/extras.py), repartidos en una grilla y teñidos por zona
+function buildCity(gl) {
+  const NX = 22, NZ = 13, SP = 3.4; let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const ground = new THREE.Mesh(new THREE.BoxGeometry(NX * SP + 6, 0.4, NZ * SP + 6), mat(C.blanco)); ground.position.y = -0.2; ground.receiveShadow = true; CT.add(ground);
+  const types = ["torre_a", "torre_b", "torre_c"].map((n) => { const g = gl.scene.getObjectByName(n).children[0].geometry; g.computeBoundingBox(); const b = g.boundingBox; return { g, h: b.max.y, w: b.max.x - b.min.x, d: b.max.z - b.min.z, n: 0 }; });
+  for (let i = 0; i < NX; i++) for (let j = 0; j < NZ; j++) {
+    const x = (i - (NX - 1) / 2) * SP, z = (j - (NZ - 1) / 2) * SP, v = Math.floor(rnd() * 3), sx = 0.9 + rnd() * 0.2, sy = 0.8 + rnd() * 0.4, ry = Math.floor(rnd() * 4) * Math.PI / 2;
+    city.push({ x, z, v, sx, sy, ry, k: types[v].n++, h: types[v].h * sy, w: types[v].w * sx, d: types[v].d * sx, r: Math.hypot(x - 9, z + 2) });   // la Región Metropolitana: los más cercanos a un punto
+  }
+  const byR = city.map((c, i) => i).sort((a, b) => city[a].r - city[b].r);
+  const nSam = Math.round(city.length * 0.175);   // 5.575 de 31.860 edificios
+  byR.forEach((idx, k) => { city[idx].rank = k; city[idx].sam = k < nSam; city[idx].som = k < 15; city[idx].pil = k < 3; });
+  const tm = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.75 });
+  types.forEach((t) => { t.m = new THREE.InstancedMesh(t.g, tm, t.n); t.m.castShadow = t.m.receiveShadow = true; t.m.frustumCulled = false; CT.add(t.m); });
+  cityMesh = types.map((t) => t.m);
+  city.forEach((c) => { _o.position.set(c.x, 0, c.z); _o.rotation.set(0, c.ry, 0); _o.scale.set(c.sx, c.sy, c.sx); _o.updateMatrix(); cityMesh[c.v].setMatrixAt(c.k, _o.matrix); cityMesh[c.v].setColorAt(c.k, COL.tam); });
+  _o.rotation.set(0, 0, 0);
+  cityRoof = new THREE.InstancedMesh(UNIT, mat(C.panel, { roughness: 0.35 }), city.length); cityRoof.castShadow = true; cityRoof.frustumCulled = false; CT.add(cityRoof);
+}
+const _c = new THREE.Color();
+// road > 0: hoja de ruta, se encienden los edificios de cada etapa (3, 10, 35 y 80), los más cercanos al centro
+const ROAD = [0, 1, 2, 7, 15],   // proporcional a 3, 10, 35 y 80 edificios: la última etapa es el mismo SOM de la lámina 4
+      roadN = (r) => { const i = Math.min(3, Math.floor(r)); return ROAD[i] + (ROAD[i + 1] - ROAD[i]) * Math.min(1, r - i); };
+function setCity(sam, som, pil, road) {
+  const lit = road > 0.001 ? roadN(road) : -1;
+  city.forEach((c, i) => {
+    _c.copy(COL.tam); let k;
+    if (lit >= 0) { const on = Math.max(0, Math.min(1, lit - c.rank)); if (c.sam) _c.copy(COL.sam); _c.lerp(COL.som, on); k = on; }
+    else {
+      if (c.sam) _c.lerp(COL.sam, sam);
+      if (c.som) _c.lerp(COL.som, som);
+      if (!c.pil) _c.lerp(COL.dim, pil * 0.85);
+      k = c.som ? som * (c.pil ? 1 : 1 - pil) : 0;   // paneles en el techo de los edificios del SOM
+    }
+    cityMesh[c.v].setColorAt(c.k, _c);
+    _o.position.set(c.x, c.h + 0.1, c.z); _o.scale.set(k ? Math.min(c.w, c.d) * 0.7 * k : 0, 0.16, k ? Math.min(c.w, c.d) * 0.7 * k : 0); _o.updateMatrix(); cityRoof.setMatrixAt(i, _o.matrix);
+  });
+  cityMesh.forEach((m) => (m.instanceColor.needsUpdate = true)); cityRoof.instanceMatrix.needsUpdate = true;
+}
+const pilotAt = () => { const p = city.filter((c) => c.pil); return [p.reduce((s, c) => s + c.x, 0) / 3, 0, p.reduce((s, c) => s + c.z, 0) / 3]; };
+
+// ---------- etiquetas clicables y fichas ----------
+const ETIQUETAS = {
+  ascensor: { c: "Bien común: se paga entre todos, en el gasto común.", t: "Ascensor", p: [0, T.G + 5 * 3 + 1.3, 0.7], dx: -130, dy: -28, v: { t: [0, 9, 0], d: 42, az: 14, el: 7 }, info: "Es un bien común: su consumo eléctrico se paga entre todos, en el gasto común." },
+  bomba: { c: "Impulsa el agua a los pisos altos. Funciona todo el día.", t: "Bomba de agua", p: [4.4, 1.5, 2.2], dx: 120, dy: 26, v: { t: [5.4, 1.7, 2], d: 17, az: 12, el: 9 }, info: "Impulsa el agua hasta los pisos altos. Funciona todo el día y es uno de los mayores consumos de los bienes comunes." },
+  luces: { c: "Pasillos, hall y escaleras, encendidos muchas horas.", t: "Luces de pasillo", p: [-2.3, T.G + 8 * 3 + 1.8, 3.2], dx: 130, dy: -34, v: { t: [-1, T.G + 8 * 3 + 1.4, 2], d: 17, az: 20, el: 8 }, info: "Pasillos, hall y escaleras quedan encendidos muchas horas. También se pagan en el gasto común." },
+  deptos: { c: "Cada uno mantiene su medidor y su boleta.", t: "Departamentos", p: [-5.6, T.G + 10 * 3 + 1.4, 3], dx: -120, dy: -30, v: { t: [-5.7, T.G + 9 * 3 + 1.3, 0], d: 19, az: 12, el: 7 }, info: "Cada departamento mantiene su propio medidor y su boleta. El sistema solar no se conecta a ellos." },
+  sala: { c: "Aquí van el inversor, el tablero y el medidor.", t: "Sala eléctrica", p: [-5.9, 0.6, 3.6], dx: -130, dy: 30, v: { t: [-5.6, 1.9, 1.5], d: 17, az: 10, el: 8 }, info: "Aquí se ubican el inversor, el tablero de bienes comunes y el medidor del edificio." },
+  paneles: { c: "Van en el techo, que es un bien común.", t: "Paneles solares", p: [5.9, R + 0.9, 3.9], dx: 110, dy: -34, v: { t: [0, R, 0], d: 44, az: 28, el: 32 }, info: "Generan electricidad con la luz del sol. Van en el techo, que es un bien común del condominio." },
+  inversor: { c: "Convierte la corriente de los paneles en la que usa el edificio.", t: "Inversor", p: [-3.9, 1.7, 1.0], dx: -40, dy: 120, v: { t: [-5.6, 1.9, 1.5], d: 17, az: 10, el: 8 }, info: "Convierte la corriente continua de los paneles en la corriente alterna que usa el edificio." },
+  tablero: { c: "Reparte la energía entre ascensor, bomba y luces.", t: "Tablero de bienes comunes", p: [-5.9, 2.9, 1.0], dx: 70, dy: -92, v: { t: [-5.6, 1.9, 1.5], d: 17, az: 10, el: 8 }, info: "Reparte la energía entre el ascensor, la bomba de agua y las luces de pasillo." },
+  medidor: { c: "El único de los bienes comunes. Registra lo que entra y lo que sale.", t: "Medidor bidireccional", p: [-7.8, 2.0, 1.0], dx: -170, dy: 36, v: { t: [-5.6, 1.9, 1.5], d: 17, az: 10, el: 8 }, info: "Es el único medidor de los bienes comunes. Registra la energía que entra desde la red y la que sale hacia ella: eso es Net Billing." },
+  red: { c: "El edificio sigue conectado a su distribuidora.", t: "Red de la distribuidora", p: [-14.9, 7.9, 3], dx: 10, dy: -48, v: { t: [-13, 4, 2], d: 34, az: -16, el: 10 }, info: "El edificio sigue conectado a su distribuidora. De noche la red entrega la energía; de día recibe el excedente." },
+};
+CAPAS.forEach((c) => (ETIQUETAS[c.id] = { t: c.name, c: c.c, capa: c, dx: 150, dy: 0, info: c.info }));
+const lbRoot = $("#labels");
+Object.entries(ETIQUETAS).forEach(([id, e]) => {
+  if (!e.p && !e.capa) return;
+  const el = document.createElement("div"); el.className = "lb"; el.hidden = true;
+  const len = Math.hypot(e.dx, e.dy), ang = Math.atan2(e.dy, e.dx);
+  el.innerHTML = `<s style="width:${len}px;transform:rotate(${ang}rad)"></s><i></i><button type="button" style="left:${e.dx}px;top:${e.dy}px"></button>`;
+  el.querySelector("button").textContent = e.t; el.querySelector("button").append(Object.assign(document.createElement("small"), { textContent: e.c })); el.querySelector("button").onclick = () => select(id);
+  lbRoot.appendChild(el); e.el = el;
+});
+
+// ---------- guion: las 11 láminas del pitch de Solemne 2 ----------
+// who: relator (guion Solemne 2). say: lo que dice. data: lo que muestra la lámina (cifras del deck). s: estado final de la escena.
+// pre: valores desde los que parte la entrada; seq: [{t: segundo, s: estado, d: duración, v: vista opcional}]; dur: segundos en reproducción automática.
+const QUIEN = ["Felipe Chartier", "Natalia Gómez", "Constanza Santander", "Antonia Zúñiga"];
+const en = (a, b) => () => stepClock >= a && stepClock < b;   // texto visible entre los segundos a y b de la lámina
+const VRA = { t: [4.5, 2.5, 1], d: 48, az: 16, el: 30 }, VRB = { t: [2.5, 2.2, 15], d: 32, az: 0, el: 8 }, VRC = { t: [2, 4.5, RZ], d: 34, az: 10, el: 14 };
+const VQA = { t: [3, 3.6, 0], d: 26, az: 18, el: 16 }, VQB = { t: [4, 2.6, 15], d: 36, az: 8, el: 22 }, VQC = { t: [4, 3, QZ], d: 48, az: 14, el: 30 }, VQD = { t: [2, 6, QZ - 2], d: 52, az: 10, el: 16 };
+const VH = { t: [5, 2, 0], d: 78, az: 12, el: 30 }, VHS = HX.map((x, i) => ({ t: [x + 3.5, HY[i] + 2, 0], d: 28, az: 20, el: 26 }));
+const VN = { t: [7, 3, 2], d: 50, az: 16, el: 30 }, VNB = { t: [5, 2.5, 13], d: 48, az: 4, el: 16 };
+const VB = { t: [3, 17, 0], d: 118, az: 34, el: 15 }, VI = { t: [-1.5, 17.5, 0], d: 112, az: 14, el: 9 };
+const VT = { t: [0, 0, 0], d: 6.4, az: 0, el: 88 }, VP = { t: [0, -0.1, 0], d: 5.4, az: 32, el: 34 }, VX = { t: [0.35, -0.15, 0], d: 9.2, az: 36, el: 14 };
+const VCH = { t: [2.5, -7.5, 0], d: 52, az: -14, el: 6 }, VD = { t: [0.6, 2, 0.5], d: 15.5, az: -8, el: 13 }, VC = { t: [0, 2, 0], d: 96, az: 18, el: 38 }, VR = { t: [6, 2, -2], d: 80, az: 24, el: 42 };
+const DEF = { paper: 0, draw: 1, rise: 1, lineOp: 0, asm: 0, fOp: 1, fOff: 0, wire: 1, explode: 0, old: 0, grow: 1, sam: 1, som: 1, pil: 0, road: 0 };
+const DUR = { paper: 1.2, draw: 0, rise: 2, lineOp: 0.8, asm: 1.6, fOp: 1.3, fOff: 1.3, wire: 0, explode: 1.5, old: 1.5, grow: 0, sam: 1.2, som: 1.2, pil: 1.4, road: 1.5 };
+const EQUIPOS = ["paneles", "inversor", "tablero", "medidor", "red"];
+const bar = (v, pct, cls = "") => `<div><span class="v ${cls}">${v}</span><i data-h="${pct}" style="background:${cls ? "var(--verde)" : "var(--red)"}"></i></div>`;
+const PASOS = [
+  { stage: "b", who: 0, dur: 36, title: "SolPrende", sub: "El ahorro se enciende desde arriba.", view: VB, read: "plano", labels: [], rotate: true,
+    s: { wire: 0 }, pre: { draw: 0, paper: 1, rise: 0, lineOp: 1, asm: 1 }, preView: { t: [2, 18, 0], d: 122, az: 0, el: 1 },
+    seq: [{ t: 0.3, s: { draw: 1 }, d: 5.6 }, { t: 6.2, s: { rise: 1, paper: 0 }, d: 2.8, v: VB }, { t: 8.4, s: { lineOp: 0 }, d: 1 }, { t: 9, s: { asm: 0 }, d: 1.6 }],
+    say: ["¿Cuánto paga su edificio al mes solo por el ascensor, la bomba de agua y las luces de los pasillos?", "La energía solar podría bajar esa cuenta, pero ningún edificio la instala.", "Un sistema cuesta más de $10 millones; el comité no tiene capital ni crédito, nadie ofrece algo para condominios y la asamblea aprueba con 66 % de quórum.", "Por eso creamos SolPrende: el ahorro se enciende desde arriba."],
+    data: `<h2 class="hero"><span class="lgo" role="img" aria-label="SolPrende"></span><em style="display:block;font-size:.62em;margin-top:6px">El ahorro se enciende desde arriba.</em></h2>
+      <div class="team"><span><b>F</b>Felipe Chartier</span><span><b>N</b>Natalia Gómez</span><span><b>C</b>Constanza Santander</span><span><b>A</b>Antonia Zúñiga</span></div>
+      <p class="eye" style="margin-top:4px">El problema</p>
+      <div class="stack">
+        <div class="card ix"><span class="n">01</span><div><h3>Sin capital</h3><p>Un sistema de 15 kWp cuesta <b class="num" style="color:var(--noche)">$11,85 M</b> a precio de mercado.</p></div></div>
+        <div class="card ix"><span class="n">02</span><div><h3>Sin crédito ni oferta</h3><p>El comité no tiene historial de crédito y las solares venden a casas o industrias.</p></div></div>
+      </div>
+      <div class="band"><span class="num">66 %</span><p>Quórum que exige la Ley 21.442 para construir en bienes comunes.</p></div>
+      <p class="foot">Profesor Cristián Cisternas · ICOM802 · Universidad Andrés Bello · Precio: SolarPro 2026, $790/Wp</p>` },
+  { stage: "b", who: 0, dur: 50, title: "La solución y el prototipo", sub: "Un solo sistema en los bienes comunes, financiado por un tercero.", view: VI, read: "cable", labels: [], tour: EQUIPOS, flow: true,
+    s: { fOp: 0, fOff: 1 }, seq: [{ t: 0.3, s: { wire: 1 }, d: 5.5 }],
+    say: ["Un solo sistema solar en los bienes comunes, conectado al único medidor del edificio: así funciona Net Billing.", "Un socio financista paga el sistema y el edificio lo arrienda: ahorra $170.000, paga $130.000 y le quedan $40.000 al mes.", "Es conservador: con tarifas reales de Enel, el ahorro da unos $233.000.", "Prototipo: la web calcula el ahorro con la boleta; la app lo muestra mes a mes. Aún sin pruebas con comités."],
+    data: `<h2>Solar en bienes comunes, sin inversión</h2>
+      <div class="dark"><p class="eye">Edificio tipo · cada mes</p>
+        <div class="bars">${bar("+$170.000", 100, "g")}${bar("−$130.000", 76.5)}${bar("+$40.000", 23.5, "g")}</div>
+        <div class="blab"><p>Ahorro en la boleta</p><p>Cuota a SolPrende</p><p>A favor del edificio</p></div>
+        <div class="tot"><p>Inversión del condominio</p><span class="num">$0</span></div></div>
+      <p class="ok">Con tarifas reales de Enel y el Explorador Solar, el ahorro del edificio tipo da unos <b>$233.000</b> al mes: los $170.000 son conservadores.</p>
+      <div class="card"><h3>Prototipo</h3><div class="grid2" style="margin-top:4px"><img src="web.jpg" alt="Sitio web de SolPrende" style="width:100%;border-radius:6px;border:1px solid var(--borde)"><img src="app.jpg" alt="App de SolPrende" style="width:44%;justify-self:center;border-radius:6px;border:1px solid var(--borde)"></div>
+        <p style="margin-top:4px">Web: estudio de ahorro y kit para la asamblea. App: ahorro, cuota y saldo a favor cada mes.</p></div>
+      <p class="warn">Aprendizaje: aún no lo probamos con comités. Es la primera etapa del plan.</p>
+      <p class="foot">Edificio tipo de 80 unidades · Net Billing (Ley 21.118) · Validación de ahorro: tarifa Enel 2025–2026</p>` },
+  { stage: "n", who: 1, dur: 43, title: "Modelo de negocios ajustado", sub: "Lo que cambiamos al evaluar con precios reales.", view: VN, labels: [],
+    seq: [{ t: 0, s: {}, d: 1.2, v: VN }, { t: 18.5, s: {}, d: 1.8, v: VNB }],
+    tags: [{ p: [-4, 11, 0], t: "Cliente: el comité del edificio", when: en(0.6, 18.5) }, { p: [-12, 5.2, 0], t: "Administradoras: el canal", when: en(1.6, 18.5) },
+      { p: [5, 7.4, -6], t: "Socio financista", when: en(7.8, 18.5) }, { p: [5, 6.2, 5], t: "SolPrende", when: en(7.8, 18.5) },
+      { p: [-8, 4.6, 0], t: "Venta a varios edificios", c: "big", when: en(4, 8) },
+      { p: [0.5, 7.6, -3], t: "Pone el sistema: ≈ $11,85 M", c: "big", when: en(9.5, 12) },
+      { p: [5, 9.2, 5], t: "Activación: 8 % del sistema (≈ $852.000, una vez)", c: "big", when: en(9.5, 12) },
+      { p: [0.5, 7.6, 2.5], t: "Arriendo $130.000 + SolPrende+ $20.000 al mes", c: "big", when: en(12.5, 18.5) },
+      { p: [7.5, 5.6, -0.5], t: "86 % del arriendo al financista", c: "big", when: en(15.5, 18.5) },
+      { fix: 1, t: "Qué ajustamos al evaluar con precios reales", c: "big fx", when: en(19.5, 38.5) },
+      { p: [-10, -1, 15], t: "Precio del sistema", c: "ax", when: en(20, 1e9) }, { p: [-10, 6.4, 13], t: "$790 → $710 por Wp", c: "big", when: en(21.5, 1e9) },
+      { p: [0, -1, 15], t: "Horas de venta", c: "ax", when: en(26, 1e9) }, { p: [0, 6.4, 13], t: "40 → 15 h con la plataforma", c: "big", when: en(27.5, 1e9) },
+      { p: [10, -1, 15], t: "Arriendo al financista", c: "ax", when: en(32, 1e9) }, { p: [10, 6.4, 13], t: "95 % → 86 %", c: "big", when: en(33.5, 1e9) },
+      { fix: 1, t: "Además: contrato tipo, mantención remota y equipo sin oficina", c: "big fx", when: en(38.5, 1e9) }],
+    say: ["Gracias, Felipe. Le vendemos al comité de edificios de 20 o más departamentos, a través de administradoras.", "Ingresos: activación de 8 % del sistema (unos $852.000, una vez), arriendo de $130.000 y SolPrende+ por $20.000 al mes.", "Al evaluar con precios reales, el modelo original perdía plata. Lo ajustamos: sistema estándar con compra agrupada, plataforma de 40 a 15 horas, contrato tipo, mantención remota y equipo sin oficina."],
+    data: `<h2>Modelo de negocios ajustado</h2>
+      <div class="cv">
+        <div><h4>Socios clave</h4>Financista · Administradoras · Instaladores SEC · Abogado</div>
+        <div><h4>Actividades</h4>Diagnóstico · Asamblea · Instalación y mantención remota</div>
+        <div><h4>Recursos</h4>Plataforma web y app · Capital: financista</div>
+        <div class="vp"><h4>Propuesta de valor</h4>Energía solar sin inversión · $40.000 a favor al mes · Reporte para la asamblea</div>
+        <div><h4>Relación</h4>Asesoría al comité · App · SolPrende+</div>
+        <div><h4>Canales</h4>Administradoras aliadas · Web · Referidos</div>
+        <div><h4>Segmento</h4>Comités de edificios de 20+ departamentos, RM</div>
+        <div class="cost"><h4>Costos</h4>Venta 15 h · Mantención · Sin oficina</div>
+        <div class="ing"><h4>Ingresos</h4>Activación 8 % (≈ $852.000) · Arriendo $130.000/mes · SolPrende+ $20.000/mes</div>
+      </div>
+      <div class="card"><h3>Qué ajustamos desde la Solemne 2</h3>
+        <div class="it two" style="margin-top:4px">
+          <div><s>Sistema a $790/Wp</s><span>→</span><b>Estándar y compra agrupada: $710/Wp</b></div>
+          <div><s>40 horas de venta por edificio</s><span>→</span><b>15 horas con la plataforma</b></div>
+          <div><s>Oficina y contrato por edificio</s><span>→</span><b>Equipo remoto y contrato tipo</b></div>
+          <div><s>Visitas de mantención fijas</s><span>→</span><b>Monitoreo remoto y rutas</b></div>
+        </div></div>
+      <p class="foot">Precios: SolarPro y Terralink 2026 · Horas: modelo lineal vs. escalable del grupo (tarea 4)</p>` },
+  { stage: "m", who: 1, dur: 37, title: "Potencial de mercado", sub: "TAM, SAM y SOM, coherentes con la hoja de ruta.", view: VC, labels: [], rotate: true,
+    tags: [{ p: [-24, 9, -14], t: "TAM · Chile", c: "big", when: () => S.sam < 0.5 }, { p: [2, 14, -4], t: "SAM · Región Metropolitana", c: "big", when: () => S.sam > 0.5 && S.som < 0.5 }, { p: [2, 14, -4], t: "SOM · 80 edificios al año 5", c: "big", when: () => S.som > 0.5 }],
+    s: { sam: 1, som: 1 }, pre: { sam: 0, som: 0 }, seq: [{ t: 4, s: { sam: 1 }, d: 1.4 }, { t: 10, s: { som: 1 }, d: 1.4 }],
+    say: ["Según el Censo 2024 hay 1,27 millones de departamentos: unos 31.860 edificios, un TAM de $57.348 millones al año.", "SAM: 5.575 edificios de la Región Metropolitana con 20 o más unidades, $10.035 millones al año.", "SOM: 10 edificios el primer año y 80 al quinto, el 1,4 % del SAM.", "Y el Net Billing crece 42 % al año en Chile. Constanza les muestra los números."],
+    data: `<h2>Potencial de mercado</h2>
+      <div class="mk">
+        <div><span class="t">TAM</span><span>31.860 edificios en Chile</span><span class="num">$57.348 M</span><p>1.274.376 departamentos ÷ 40 por edificio × $1.800.000 al año</p></div>
+        <div class="sam"><span class="t">SAM</span><span>5.575 edificios en la RM</span><span class="num">$10.035 M</span><p>35 % en la RM × 50 % con 20 o más unidades</p></div>
+        <div class="som"><span class="t">SOM</span><span>80 edificios al año 5 (1,4 % del SAM)</span><span class="num">$144 M</span><p>80 × $1.800.000 de ingreso bruto al año. Ingreso total de SolPrende el año 5: ≈ $48 M, incluidas las comisiones (tarea 8).</p></div>
+      </div>
+      <div class="band"><span class="num">+42 %</span><p>Crecimiento anual del Net Billing en Chile: 466,7 MW y 39.636 instalaciones (SEC, abril 2026). La RM lidera; le sigue Valparaíso.</p></div>
+      <p class="foot">Censo 2024, INE (única cifra oficial del TAM). 40 por edificio, 35 % y 50 %: estimaciones del equipo. SOM: embudo de la tarea 7 y proyección de la tarea 8. Ciudad ilustrativa, no está a escala.</p>` },
+  { stage: "c", who: 2, dur: 46, title: "Lo que nos dijeron los números", sub: "Flujo de caja acumulado a 5 años, tasa de 15 %.", view: VCH, labels: [], tags: "chart",
+    s: { grow: 1 }, pre: { grow: 0 }, seq: [{ t: 0.5, s: { grow: 1 }, d: 4.5 }],
+    say: ["Gracias, Natalia. Evaluamos SolPrende a cinco años, al 15 %.", "El modelo original no era viable: el financista se quedaba con el 95 % del arriendo y el VAN daba −$40,5 millones.", "Con la reducción de costos, el flujo acumulado llega a +$4,7 millones el año cinco y la inversión se recupera en 4,5 años. El VAN queda en −$0,9 millones y la TIR en 11,6 %.", "La palanca que falta es el financiamiento: con una tasa de 10 % en vez de 11 %, el VAN sube a +$5,4 millones."],
+    data: `<h2>Lo que nos dijeron los números</h2>
+      <div class="leg card" style="gap:4px"><div><i style="background:#9AA9B8"></i>Original</div><div><i style="background:var(--azul)"></i>Con reducción de costos</div></div>
+      <div class="card"><div class="it">
+        <div><b>Indicador</b><span></span><b>Original → reducción</b></div>
+        <div><span>VAN al 15 %</span><span></span><span class="num">−$40,5 M → −$0,9 M</span></div>
+        <div><span>TIR</span><span></span><span class="num">no existe → 11,6 %</span></div>
+        <div><span>Payback simple</span><span></span><span class="num">no → 4,5 años</span></div>
+        <div><span>Arriendo que se lleva el financista</span><span></span><span class="num">95 % → 86 %</span></div>
+        <div><span>Inversión inicial</span><span></span><span class="num">$5,1 M → $4,8 M</span></div>
+      </div></div>
+      <div class="dark"><p class="eye">La palanca: la tasa del financista</p>
+        <div class="it" style="color:var(--blanco)">
+          <div style="border-color:#22406E"><span>11 % (mercado)</span><span></span><span class="num">VAN −$0,9 M</span></div>
+          <div style="border-color:#22406E"><span>10,5 %</span><span></span><span class="num">VAN +$2,3 M</span></div>
+          <div style="border-color:#22406E"><span>10 %</span><span></span><span class="num" style="color:var(--verde)">VAN +$5,4 M · TIR 34,6 %</span></div>
+        </div><p style="font-size:12.5px">Con 10 % para todos los sistemas del plan (80 en 5 años).</p></div>
+      <p class="foot">Tarea 8, escala anual, año 1 = 2027. Sensibilidad recalculada en la planilla. A 10 años y con otros supuestos (sin sueldos fijos), el VAN llega a +$72,6 M.</p>` },
+  { stage: "d", who: 2, dur: 41, title: "Modelo de escalamiento: Lean Scaling", sub: "Crecer por etapas, validando antes de acelerar.", view: VD, labels: [], rotate: false,
+    tags: [{ p: [-2.6, 4.7, -1.5], t: "Plataforma: de 40 a 15 horas por edificio", c: "big" }, { p: [2.2, 5.4, 0.6], t: "App: ahorro verificable", c: "big" }],
+    s: {},
+    say: ["Por eso elegimos Lean Scaling: crecer por etapas y acelerar solo cuando cada una cumple sus métricas.", "Blitzscaling no calza: exige mucho capital y crecer aunque se pierda plata; nuestro VAN cae a −$6 millones si las ventas bajan 15 %, y cada venta pasa por una asamblea.", "Lean Scaling sí calza: el capital de los sistemas lo pone el financista y la plataforma baja la venta de 40 a 15 horas.", "Antonia les muestra la hoja de ruta."],
+    data: `<h2>Lean Scaling</h2>
+      <p style="font-size:14px;line-height:1.45">Crecer por etapas, con poco capital propio, y acelerar solo cuando cada etapa cumple sus métricas.</p>
+      <div class="stack">
+        <div class="card" style="border-color:var(--azul);border-width:2px"><h3>Lean Scaling · elegido</h3><p>El financista pone el capital de los sistemas; SolPrende invierte solo $4,8 M. La plataforma baja la venta de 40 a 15 horas por edificio.</p></div>
+        <div class="card"><h3 style="color:var(--ink2)">Blitzscaling · no calza</h3><p>Exige mucho capital para crecer perdiendo plata. Con 15 % menos ventas el VAN cae a −$6,0 M, y cada venta pasa por una asamblea que toma meses.</p></div>
+        <div class="card"><h3 style="color:var(--ink2)">Scaling Up · más adelante</h3><p>Ordenar equipo, procesos y caja de una empresa grande: tiene sentido cuando pasemos el punto de equilibrio de 64 edificios.</p></div>
+      </div>
+      <p class="foot">Evidencia: sensibilidad de la tarea 8 (ventas −15 %), modelo lineal vs. escalable (tarea 4) y punto de equilibrio del dashboard de la tarea 8.</p>` },
+  { stage: "h", who: 3, dur: 54, title: "Hoja de ruta", sub: "Cuatro etapas, de la validación a 80 edificios.", view: VH, labels: [],
+    seq: [{ t: 0, s: {}, d: 1.2, v: VH }, { t: 2.6, s: {}, d: 1.8, v: VHS[0] }, { t: 13, s: {}, d: 1.6, v: VHS[1] }, { t: 22, s: {}, d: 1.6, v: VHS[2] }, { t: 31, s: {}, d: 1.6, v: VHS[3] }, { t: 40, s: {}, d: 2, v: VH }, { t: 46, s: {}, d: 2, v: VHS[4] }],
+    tags: [...["Etapa 0 · 2027 S1", "Etapa 1 · 2027", "Etapa 2 · 2028–2029", "Etapa 3 · 2030–2031", "Etapa 4 · 2032"].map((t, i) => ({ p: [HX[i], -0.6, 5.2], t, c: "ax", when: () => stepClock < 2.6 || (stepClock >= 40 && stepClock < 46) })),
+      { p: [HX[0], HY[0] + 7.6, 0], t: "Validar · primer semestre 2027", c: "big", when: en(3, 13) }, { p: [HX[0], HY[0] + 6.4, 0], t: "Entrevistas, cotización y financista", when: en(4, 13) },
+      { p: [HX[0], HY[0] + 3, 2.6], t: "3 pilotos, los primeros de 2027", when: en(8, 13) },
+      { p: [HX[1], HY[1] + 7.6, 0], t: "2027 · 10 edificios en la RM", c: "big", when: en(14.2, 22) }, { p: [HX[1], HY[1] + 6.4, 0], t: "con 2 o 3 administradoras", when: en(15, 22) },
+      { p: [HX[2], HY[2] + 7.6, 0], t: "2028–2029 · 35 edificios", c: "big", when: en(23.2, 31) }, { p: [HX[2], HY[2] + 6.4, 0], t: "con la plataforma funcionando", when: en(24, 31) },
+      { p: [HX[3], HY[3] + 7.6, 0], get t() { const n = hCount(); return n + " edificios" + (n >= 64 ? " · sobre el equilibrio (64)" : ""); }, c: "big", when: en(32, 40) },
+      { p: [HX[3], HY[3] + 6.4, 0], t: "2030–2031 · el 1,4 % del SAM", when: en(32.4, 40) },
+      ...["Meta: activación 8 % y ≤ $710/Wp", "Meta: CAC ≤ comisión y 15 h", "Meta: margen ≥ 50 %"].map((t, i) => ({ p: [HX[i] + 5, HY[i + 1] + 3.4, 2.6], t, c: "big", when: en(HOPEN[i] - 2.6, HOPEN[i] + 1) })),
+      { fix: 1, t: "Solo pasamos de etapa si se cumple su meta", c: "big fx", when: en(40, 46) },
+      { p: [HX[4], HY[4] + 7.6, 0], t: "Desde 2032: Valparaíso", c: "big", when: en(47.4, 1e9) }, { p: [HX[4], HY[4] + 6.4, 0], t: "la segunda región en Net Billing", when: en(48, 1e9) }],
+    say: ["Gracias, Constanza. Primero, seis meses de validación: entrevistas, cotización real, acuerdo con el financista y tres pilotos, que son los primeros de los 10 de 2027.", "En 2027, 10 edificios en la Región Metropolitana, con dos o tres administradoras.", "En 2028 y 2029, 35 edificios con la plataforma funcionando. En 2030 y 2031, 80 edificios, el 1,4 % del SAM, sobre el punto de equilibrio de 64.", "Solo pasamos de etapa si se cumple su meta. Después abrimos Valparaíso, la segunda región en Net Billing."],
+    data: `<h2>Hoja de ruta de escalamiento</h2>
+      <div class="rm">
+        <div><b>0</b><div><h3>Validar · primer semestre 2027</h3><p>15 comités y 5 administradoras entrevistados · cotización real · acuerdo marco con financista · 3 pilotos, los primeros de los 10 de 2027</p><span>Meta: activación 8 %, sistema ≤ $710/Wp</span></div></div>
+        <div><b>1</b><div><h3>Entrar · 2027</h3><p>10 edificios en la RM (incluye los 3 pilotos), vía 2 o 3 administradoras</p><span>Meta: CAC ≤ comisión, 15 h por edificio</span></div></div>
+        <div><b>2</b><div><h3>Crecer · 2028–2029</h3><p>35 edificios en operación; plataforma y mantención remota</p><span>Meta: margen de contribución ≥ 50 %</span></div></div>
+        <div><b>3</b><div><h3>Consolidar · 2030–2031</h3><p>80 edificios (1,4 % del SAM); punto de equilibrio: 64</p><span>Meta: EBITDA ≥ 20 %, flujo acumulado positivo</span></div></div>
+        <div><b>4</b><div><h3>Expandir · desde 2032</h3><p>Valparaíso, segunda región en Net Billing (SEC 2026)</p><span>Con otros supuestos: 230 edificios al año 10</span></div></div>
+      </div>
+      <p class="foot">Contratos por año: 10 · 10 · 15 · 20 · 25 (tarea 8). Ciudad ilustrativa, no está a escala: las cifras reales están en las etiquetas.</p>` },
+  { stage: "r", who: 3, dur: 41, title: "Recursos, métricas y riesgos", sub: "Qué necesitamos, cómo medimos y qué puede fallar.", view: VRA, labels: [],
+    seq: [{ t: 0, s: {}, d: 1.2, v: VRA }, { t: 9.4, s: {}, d: 1.6, v: VRB }, { t: 19.6, s: {}, d: 1.8, v: VRC }],
+    tags: [{ fix: 1, t: "Cuatro alianzas", c: "big fx", when: en(0.5, 9.4) }, { p: [0, 6.4, 0], t: "SolPrende", when: en(0.6, 9.4) },
+      { p: [-9, 7.4, -4], t: "Socio financista: capital de los sistemas", c: "big", when: en(1.4, 9.4) }, { p: [9, 5.6, -4], t: "Instaladores SEC", c: "big", when: en(3.4, 9.4) },
+      { p: [-8, 5.6, 6], t: "Administradoras: el canal", c: "big", when: en(5.4, 9.4) }, { p: [8, 6, 6], t: "Abogado de copropiedad", c: "big", when: en(7.4, 9.4) },
+      { fix: 1, t: "Cómo medimos", c: "big fx", when: en(10, 19.6) },
+      { p: [-9, -1, 15.7], t: "Activación", c: "ax", when: en(10, 19.6) }, { p: [-9, 5.2, 15], t: "8 %", c: "big", when: en(11.8, 19.6) },
+      { p: [-3, -1, 15.7], t: "Horas por edificio", c: "ax", when: en(12.4, 19.6) }, { p: [-3, 5.2, 15], t: "≤ 15 h", c: "big", when: en(14.2, 19.6) },
+      { p: [3, -1, 15.7], t: "Costo de adquisición", c: "ax", when: en(14.8, 19.6) }, { p: [3, 5.2, 15], t: "CAC ≤ comisión", c: "big", when: en(16.6, 19.6) },
+      { p: [9, -1, 15.7], t: "Meses con ahorro", c: "ax", when: en(17.2, 19.6) }, { p: [9, 5.2, 15], t: "90 %", c: "big", when: en(19, 19.6) },
+      { fix: 1, t: "Riesgos y cómo los mitigamos", c: "big fx", when: en(20.5, 1e9) },
+      { p: [-5, 9.5, RZ + 3], t: "Financiamiento caro", when: en(21.5, 23.6) }, { p: [-5, 6.4, RZ + 3], t: "Acuerdo marco y fondos verdes", c: "big", when: en(23.4, 1e9) },
+      { p: [0, 12.2, RZ + 3], t: "La asamblea no aprueba", when: en(26.5, 28.6) }, { p: [0, 9.3, RZ + 3], t: "Kit de asamblea y revisión legal", c: "big", when: en(28.4, 1e9) },
+      { p: [5, 9.5, RZ + 3], t: "Ahorro real menor", when: en(31.5, 33.6) }, { p: [5, 6.4, RZ + 3], t: "Diagnóstico con la boleta real", c: "big", when: en(33.4, 1e9) }],
+    say: ["Necesitamos cuatro alianzas: el socio financista, instaladores con certificación SEC, administradoras y un abogado de copropiedad.", "Medimos: activación de 8 %, 15 horas o menos por edificio, un costo de adquisición menor que la comisión y 90 % de meses con ahorro positivo.", "Riesgos: financiamiento caro, que la asamblea no apruebe y que el ahorro real sea menor. Los mitigamos con acuerdo marco y fondos verdes, kit de asamblea con revisión legal y diagnóstico con la boleta real.", "Felipe les cuenta lo que pedimos."],
+    data: `<h2>Recursos, métricas y riesgos</h2>
+      <div class="card"><h3>Alianzas y recursos</h3><div class="chips" style="margin-top:4px"><span class="chip">Socio financista (capital de los sistemas)</span><span class="chip">Instaladores SEC (pago por proyecto)</span><span class="chip">Administradoras (canal)</span><span class="chip">Abogado de copropiedad</span><span class="chip">Coordinación media jornada desde 2028</span></div></div>
+      <div class="grid2">
+        <div class="card kpi"><span class="k" style="color:var(--azul)">Activación</span><span class="num" style="font-size:24px">8 %</span><p>asambleas ÷ consultas</p></div>
+        <div class="card kpi"><span class="k" style="color:var(--azul)">Horas por edificio</span><span class="num" style="font-size:24px">≤ 15</span><p>venta y asamblea</p></div>
+        <div class="card kpi"><span class="k" style="color:var(--azul)">CAC</span><span class="num" style="font-size:24px">≤ $852.000</span><p>no superar la comisión</p></div>
+        <div class="card kpi"><span class="k" style="color:var(--azul)">Ahorro positivo</span><span class="num" style="font-size:24px">90 %</span><p>de los meses, por edificio</p></div>
+      </div>
+      <div class="card"><h3>Riesgos y cómo los mitigamos</h3><div class="it" style="margin-top:4px">
+        <div><span>Financiamiento caro (86 % del arriendo)</span><span>→</span><b>Acuerdo marco y fondos verdes</b></div>
+        <div><span>La asamblea no aprueba (66 %)</span><span>→</span><b>Kit de asamblea y revisión legal</b></div>
+        <div><span>Ahorro real menor</span><span>→</span><b>Diagnóstico con la boleta real</b></div>
+        <div><span>Ventas 15 % bajo lo esperado</span><span>→</span><b>Etapas con métricas antes de acelerar</b></div>
+      </div></div>
+      <p class="foot">Métricas y metas: dashboard de control de gestión de la tarea 8.</p>` },
+  { stage: "q", who: 0, dur: 47, title: "Lo que pedimos", sub: "Capital para partir y financiamiento verde para los sistemas.", view: VQA, labels: [],
+    seq: [{ t: 0, s: {}, d: 1.2, v: VQA }, { t: 12.2, s: {}, d: 1.6, v: VQB }, { t: 24.2, s: {}, d: 1.8, v: VQC }, { t: 38.6, s: {}, d: 2.2, v: VQD }],
+    tags: [{ fix: 1, t: "Primero: $10 M de capital", c: "big fx", when: en(0.5, 12.2) },
+      { p: [3.4, 1.7, 0], t: "$4,8 M para partir", c: "big", when: en(3.2, 12.2) }, { p: [3.4, 5.2, 0], t: "$5,2 M de caja hasta el año 3", c: "big", when: en(5.8, 12.2) },
+      { p: [0, 8.6, 0], t: "Aparte: CORFO Semilla Inicia para validar", when: en(7.4, 12.2) },
+      { fix: 1, t: "Segundo: financiamiento verde al 10 %", c: "big fx", when: en(12.8, 24.2) },
+      { p: [-8, 7.4, 15], t: "Socio financista", when: en(13, 24.2) }, { p: [6.2, 7.6, 14.8], t: "Primer tramo ≈ $106,5 M (10 sistemas)", c: "big", when: en(17, 24.2) },
+      { fix: 1, t: "Con eso, al año 5", c: "big fx", when: en(24.8, 38.6) },
+      { p: [0, 8.5, QZ - 4], t: "80 edificios con menos gasto común", c: "big", when: en(27, 38.6) },
+      { p: [-6, 6.5, QZ + 6], t: "≈ 370 t de CO₂ evitadas al año", c: "big", when: en(30.5, 38.6) },
+      { p: [7, 6.5, QZ + 6], t: "SolPrende rentable: EBITDA 21 %", c: "big", when: en(33.5, 38.6) },
+      { fix: 1, t: "Tu edificio paga menos luz, sin invertir un peso.", c: "big fx", when: en(39.4, 1e9) }],
+    say: ["Les pedimos dos cosas. Primero, $10 millones de capital: $4,8 millones para partir y el resto para cubrir la caja hasta el año tres. Aparte, postulamos a CORFO Semilla Inicia para la validación.", "Segundo, un acuerdo de financiamiento verde al 10 % para los sistemas del plan; el primer tramo, para los 10 sistemas de 2027, son unos $106 millones.", "Con eso, en cinco años 80 edificios bajan su gasto común, evitamos unas 370 toneladas de CO₂ al año y SolPrende pasa a ser rentable.", "Tu edificio paga menos luz, sin invertir un peso. Muchas gracias."],
+    data: `<h2>Lo que pedimos</h2>
+      <div class="dark">
+        <div class="ix"><span class="num" style="font-size:28px;color:var(--verde);min-width:110px">$10 M</span><p style="color:var(--blanco);font-size:14px">de capital: $4,8 M de puesta en marcha y el resto para la caja hasta el año 3 (peor momento: −$9,5 M)</p></div>
+        <div class="ix"><span class="num" style="font-size:28px;color:var(--verde);min-width:110px">10 %</span><p style="color:var(--blanco);font-size:14px">acuerdo de financiamiento verde para los sistemas del plan; primer tramo ≈ $106,5 M para los 10 sistemas de 2027</p></div>
+        <p style="font-size:12.5px">Fuente: el fondo de triple impacto que representa el jurado. Aparte de los $10 M, postulamos a CORFO Semilla Inicia (hasta $15 M no reembolsables, hasta 75 % del proyecto) para la etapa de validación.</p>
+      </div>
+      <div class="card"><h3>Impacto del escalamiento al año 5</h3><div class="grid3" style="margin-top:4px">
+        <div class="kpi"><span class="k" style="color:var(--ahorro)">Económico</span><span class="num" style="font-size:20px">80</span><p>edificios con $40.000 a favor al mes</p></div>
+        <div class="kpi"><span class="k" style="color:var(--azul)">Ambiental</span><span class="num" style="font-size:20px">≈ 370 t</span><p>de CO₂ al año (4,6 t × 80, estimación)</p></div>
+        <div class="kpi"><span class="k" style="color:var(--azul2)">Empresa</span><span class="num" style="font-size:20px">EBITDA 21 %</span><p>sobre el equilibrio</p></div>
+      </div></div>
+      <p class="q">Tu edificio paga menos luz, sin invertir un peso.</p>
+      <p class="foot">Uso de IA: material elaborado con apoyo de Claude (Anthropic); el equipo revisó el contenido y es responsable de él.</p>` },
+];
+const SUB_FLOW = { day: "De día el sol alimenta los bienes comunes y el excedente sale a la red.", night: "De noche los paneles no generan: la red de la distribuidora entrega la energía." };
+
+// ---------- estado y animación ----------
+const S = { ...DEF, night: 0 };
+let cur = 0, stage = "b", mode = "day", autoMode = true, modeClock = 0, selected = null, camTween = null, clock = 0, stepClock = 0, playing = false, W = 1, H = 1, FW = 1, autoStopped = false, timers = [];
+const tweens = {};
+function animate(k, to, dur) { if (reduce || !dur) { S[k] = to; delete tweens[k]; } else tweens[k] = { from: S[k], to, t: 0, dur }; }
+const after = (t, fn) => timers.push({ t, fn });
+const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+const BASE = { b: 1.2, p: 1.15, c: 1.2, n: 1.25, r: 1.25, q: 1.25, h: 1.25, d: 1.3, m: 1.45 };
+function camPose(v) {
+  const k = Math.max(1, BASE[stage] / (FW / H)), e = THREE.MathUtils.degToRad(v.el), a = THREE.MathUtils.degToRad(v.az);
+  const t = new THREE.Vector3(...v.t);
+  return { t, pos: new THREE.Vector3(Math.cos(e) * Math.sin(a), Math.sin(e), Math.cos(e) * Math.cos(a)).multiplyScalar(v.d * k).add(t) };
+}
+function flyTo(v, dur = 1.6) {
+  const to = camPose(v); controls.autoRotate = false;
+  if (reduce || dur === 0) { camera.position.copy(to.pos); controls.target.copy(to.t); controls.update(); camTween = null; controls.enabled = true; return; }
+  const off = camera.position.clone().sub(controls.target), offTo = to.pos.clone().sub(to.t);
+  camTween = { t0: controls.target.clone(), t1: to.t, s0: new THREE.Spherical().setFromVector3(off), s1: new THREE.Spherical().setFromVector3(offTo), t: 0, dur };
+  let dth = camTween.s1.theta - camTween.s0.theta; while (dth > Math.PI) dth -= 2 * Math.PI; while (dth < -Math.PI) dth += 2 * Math.PI; camTween.s1.theta = camTween.s0.theta + dth;
+  controls.enabled = false;
+}
+function setFacade(op, off) {
+  facade.visible = op > 0.01; facade.position.z = off * 7;
+  fmats.forEach(([m, base]) => { const o = base * op; m.opacity = o; m.depthWrite = o > 0.6; });
+  facade.children.forEach((c) => (c.castShadow = op > 0.9));
+}
+function setNight(n) {
+  scene.background.copy(BG_DAY).lerp(BG_PAPER, S.paper).lerp(BG_NIGHT, n);
+  key.intensity = 2.4 - 2.05 * n; hemi.intensity = 1.1 - 0.62 * n; scene.environmentIntensity = 0.55 - 0.37 * n;
+  sunMesh.visible = haloMesh.visible = n < 0.5;
+  $("#fade").style.background = "#" + scene.background.getHexString();
+}
+// por escenario: grupo, altura del foco, encuadre de la sombra y límites de la cámara
+const STG = {
+  b: { g: B, tgt: 15, sh: [-55, 55, 60, -30], c: { minDistance: 10, maxDistance: 260, enablePan: true } },
+  p: { g: PS, tgt: 0, sh: [-4, 4, 4, -4], c: { minDistance: 2.5, maxDistance: 26, enablePan: false } },
+  c: { g: CH, tgt: 9, sh: [-16, 16, 24, -4], c: { minDistance: 10, maxDistance: 140, enablePan: false } },
+  d: { g: DV, tgt: 1.5, sh: [-9, 9, 9, -4], c: { minDistance: 5, maxDistance: 50, enablePan: false } },
+  n: { g: NG, tgt: 2, sh: [-26, 26, 26, -14], c: { minDistance: 10, maxDistance: 140, enablePan: false } },
+  r: { g: RG, tgt: 2, sh: [-34, 34, 40, -34], c: { minDistance: 10, maxDistance: 140, enablePan: false } },
+  q: { g: QG, tgt: 2, sh: [-36, 36, 44, -36], c: { minDistance: 10, maxDistance: 160, enablePan: false } },
+  h: { g: HG, tgt: 2, sh: [-44, 44, 30, -30], c: { minDistance: 10, maxDistance: 180, enablePan: false } },
+  m: { g: CT, tgt: 0, sh: [-62, 62, 44, -44], c: { minDistance: 12, maxDistance: 260, enablePan: true } },
+};
+function applyStage(s) {
+  stage = s; Object.entries(STG).forEach(([k, v]) => (v.g.visible = k === s));
+  const o = STG[s]; Object.assign(controls, o.c);
+  key.target.position.set(0, o.tgt, 0);
+  const [l, r, t, b] = o.sh; Object.assign(key.shadow.camera, { left: l, right: r, top: t, bottom: b });
+  key.shadow.camera.updateProjectionMatrix(); key.shadow.radius = s === "p" ? 2 : 4;
+}
+function go(i, instant) {
+  i = Math.max(0, Math.min(PASOS.length - 1, i)); const st = PASOS[i], swap = st.stage !== stage;
+  cur = i; select(null, true); autoStopped = false; timers = []; stepClock = 0; autoMode = true; modeClock = 0;
+  const enter = () => {
+    if (!st.mode && mode !== "day") setMode("day", true);
+    const fast = instant || swap, intro = !reduce && st.seq, tgt = { ...DEF, ...st.s };
+    const led = new Set(intro ? st.seq.flatMap((q) => Object.keys(q.s)) : []);   // estados que conduce la secuencia de entrada
+    Object.keys(DEF).forEach((k) => {
+      if (intro && st.pre && k in st.pre) { S[k] = st.pre[k]; delete tweens[k]; }
+      else if (led.has(k) && !swap) return;
+      else animate(k, tgt[k], fast ? 0 : DUR[k]);
+    });
+    if (swap) applyStage(st.stage);
+    const later = intro && st.seq.some((q) => q.v);
+    if (intro) st.seq.forEach((q) => after(q.t, () => { Object.entries(q.s).forEach(([k, v]) => animate(k, v, q.d)); if (q.v) flyTo(q.v, q.d + 0.6); }));
+    if (intro && st.tour) { st.tour.forEach((id, k) => after(6.2 + k * 6.5, () => select(id))); after(6.2 + st.tour.length * 6.5, () => select(null)); }   // recorrido: un equipo a la vez
+    if (intro && st.preView) flyTo(st.preView, 0); else if (!later || fast) flyTo(st.view, fast ? 0 : 1.6);
+    controls.autoRotate = !!st.rotate && !reduce && !later;
+  };
+  if (swap && !instant && !reduce) { const f = $("#fade"); f.classList.add("on"); setTimeout(() => { enter(); requestAnimationFrame(() => f.classList.remove("on")); }, 330); }
+  else enter();
+  ui();
+}
+function ui() {
+  const st = PASOS[cur], who = QUIEN[st.who];
+  $("#ttl").innerHTML = st.title.replace(/^Sol(?=Prende)/, "<span style=\"color:#F5B404\">Sol</span>"); $("#sub").textContent = st.mode ? SUB_FLOW[mode] : st.sub;
+  $("#who").textContent = who; $("#ini").textContent = who[0]; $("#num").textContent = `Lámina ${cur + 1} de ${PASOS.length}`;
+  $("#say").replaceChildren(...st.say.map((t) => Object.assign(document.createElement("li"), { textContent: t })));
+  const rws = st.rows ? st.labels : [];
+  $("#rowsH").hidden = !rws.length;
+  $("#rows").replaceChildren(...rws.map((id) => {
+    const b = document.createElement("button"); b.type = "button"; b.className = "row"; b.dataset.id = id;
+    b.append(Object.assign(document.createElement("b"), { textContent: ETIQUETAS[id].t }), document.createElement("span"));
+    b.onclick = () => select(selected === id ? null : id); return b;
+  }));
+  rows();
+  const d = $("#datos"); d.innerHTML = st.data; d.scrollTop = 0;
+  requestAnimationFrame(() => requestAnimationFrame(() => {   // los gráficos del panel crecen al entrar
+    d.querySelectorAll("[data-h]").forEach((e) => (e.style.height = (e.dataset.h * (innerHeight < 900 ? 0.7 : 1.2)) + "px"));
+    d.querySelectorAll("[data-w]").forEach((e) => (e.style.width = Math.max(2, e.dataset.w) + "%"));
+  }));
+  document.querySelectorAll(".dot").forEach((x, j) => x.setAttribute("aria-current", j === cur ? "step" : "false"));
+  $("#prev").disabled = cur === 0; $("#next").disabled = cur === PASOS.length - 1;
+  $("#mode").hidden = !st.mode; $("#legend").hidden = !st.flow;
+  document.querySelectorAll("#mode button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.m === mode)));
+}
+// la lista muestra todo lo de la lámina; la pieza seleccionada abre su texto completo
+function rows() { document.querySelectorAll(".row").forEach((b) => { const e = ETIQUETAS[b.dataset.id], on = selected === b.dataset.id; b.classList.toggle("sel", on); b.lastChild.textContent = on ? e.info : e.c; }); }
+function setMode(m, quiet) { mode = m; animate("night", m === "night" ? 1 : 0, quiet ? 0 : 1.2); if (!quiet) { $("#sub").textContent = PASOS[cur].mode ? SUB_FLOW[mode] : PASOS[cur].sub; document.querySelectorAll("#mode button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.m === mode))); } }
+function select(id, quiet) {
+  selected = id; const e = id && ETIQUETAS[id];
+  CAPAS.forEach((c) => c.g && c.g.scale.setScalar(c.id === id ? 1.04 : 1)); rows();
+  if (!e) { if (!quiet) flyTo(PASOS[cur].view, 1.1); return; }
+  if (e.v) flyTo(e.v, 1.3);
+}
+
+// ---------- bucle ----------
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+function hit(ev) {
+  const r = canvas.getBoundingClientRect(); ndc.set(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+  const h = ray.intersectObjects(picks.filter((p) => { const capa = !!CAPAS.find((c) => c.id === p.userData.part); return stage === "b" ? !capa : stage === "p" && capa; }), false)[0];
+  if (!h) return null; const id = h.object.userData.part;
+  return S.rise < 0.99 || (stage === "p" && S.explode < 0.5) ? null : id;
+}
+function step(dt) {
+  clock += dt; stepClock += dt;
+  timers = timers.filter((q) => (q.t -= dt) > 0 || (q.fn(), false));
+  Object.keys(tweens).forEach((k) => { const w = tweens[k]; w.t = Math.min(1, w.t + dt / w.dur); S[k] = w.from + (w.to - w.from) * (k === "wire" || k === "draw" || k === "grow" ? w.t : ease(w.t)); if (w.t >= 1) delete tweens[k]; });
+  if (camTween) {
+    const c = camTween; c.t = Math.min(1, c.t + dt / c.dur); const e = ease(c.t);
+    const sph = new THREE.Spherical(c.s0.radius * Math.pow(c.s1.radius / c.s0.radius, e), c.s0.phi + (c.s1.phi - c.s0.phi) * e, c.s0.theta + (c.s1.theta - c.s0.theta) * e);
+    controls.target.copy(c.t0).lerp(c.t1, e); camera.position.setFromSpherical(sph).add(controls.target); camera.lookAt(controls.target);
+    if (c.t >= 1) { camTween = null; controls.enabled = true; controls.autoRotate = !!PASOS[cur].rotate && !reduce && !selected && !autoStopped; }
+  } else controls.update();
+  const st = PASOS[cur];
+  // día y noche se alternan solos; si alguien elige uno a mano, se queda ahí
+  if (st.mode && autoMode && S.wire > 0.999) { modeClock += dt; const m = Math.floor(modeClock / 7) % 2 ? "night" : "day"; if (m !== mode) setMode(m); }
+  setNight(S.night); setPlan(S.draw, S.lineOp);
+  clip.normal.set(0, -1, 0); clip.constant = 1e5;
+  if (stage === "b") {
+    clip.constant = -2 + S.rise * (R + 16);
+    roofG.position.y = S.asm * 10; roofG.visible = S.asm < 0.995;
+    setFacade(S.fOp, S.fOff); setWire(S.wire);
+    setFlow(clock, !!st.flow && S.wire > 0.999, S.night > 0.5);
+    oldMesh.visible = S.old > 0.01; oldMat.opacity = S.old;
+    const ph = (clock / 18) % 1, tri = ph < 0.5 ? ph * 2 : 2 - ph * 2;
+    cabin.position.set(0, 0.3 + 1.2 + ease(tri) * (T.G + 11 * T.fh - 0.3), -0.8);
+    haloMesh.quaternion.copy(camera.quaternion);
+  } else if (stage === "p") { clip.normal.set(-1, 0, 0); clip.constant = -2.5 + S.rise * 5.2; setExplode(S.explode); }
+  else if (stage === "c") setGrow(S.grow);
+  else if (stage === "n") setNegocio(clock, stepClock);
+  else if (stage === "r") setRecursos(clock, stepClock);
+  else if (stage === "q") setPedimos(clock, stepClock);
+  else if (stage === "h") setRuta(clock, stepClock);
+  else if (stage === "m") setCity(S.sam, S.som, S.pil, S.road);
+  renderer.render(scene, camera);
+  labels(); tagsDraw(); readout();
+  if (playing && stepClock > st.dur) cur < PASOS.length - 1 ? go(cur + 1) : play(false);
+}
+// contador de avance del dibujo, como en un plano que se va trazando
+let readTxt = "";
+const pad = (n) => String(n).padStart(4, "0");
+function readout() {
+  const rd = PASOS[cur].read; let t = "";
+  if (rd === "cable" && S.wire < 0.999) t = "tramos de cable " + segs.filter((s) => S.wire * WIRE_D > s.at).length + " de " + segs.length;
+  else if (rd && rd !== "cable" && S.lineOp > 0.01) { const p = plans[stage === "b" ? 0 : 1]; t = "líneas " + pad(p.n) + " de " + pad(p.keys.length) + (stage === "b" ? " · pisos " + Math.max(0, Math.min(T.floors, Math.floor((p.thr - T.G) / T.fh))) + " de " + T.floors : ""); }
+  if (document.body.classList.contains("dbg")) return;
+  if (t !== readTxt) { readTxt = t; $("#read").textContent = t; $("#read").hidden = !t; }
+}
+const _p = new THREE.Vector3();
+const toScreen = (el, v) => { _p.set(...v).project(camera); if (_p.z > 1) return false; el.style.transform = `translate(${((_p.x * 0.5 + 0.5) * W).toFixed(1)}px,${((-_p.y * 0.5 + 0.5) * H).toFixed(1)}px)`; return true; };
+function labels() {
+  const st = PASOS[cur];
+  Object.entries(ETIQUETAS).forEach(([id, e]) => {
+    if (!e.el) return;
+    const mine = e.capa ? stage === "p" : stage === "b", show = mine && !camTweenBusy() && S.rise > 0.99 && (selected === id || (st.labels.includes(id) && !timers.length));
+    if (!show) { e.el.hidden = true; return; }
+    const v = e.capa ? [PL / 2, e.capa.g.position.y, PW / 2] : e.p;
+    e.el.hidden = !toScreen(e.el, v); e.el.classList.toggle("sel", selected === id);
+  });
+}
+// textos flotantes sin clic: ejes del gráfico, nombres de zonas, avisos
+const tagPool = [], tagRoot = $("#tags");
+const fmtM = (v) => (v > 0 ? "+" : "−") + "$" + Math.abs(v).toFixed(1).replace(".", ",") + " M";
+function chartTags() {
+  const out = [0, -20, -40, -60].map((v) => ({ p: [-11.6, v * KY, -1.7], t: v ? "−$" + -v + " M" : "$0", c: "ax" }));
+  for (let i = 0; i < 6; i++) out.push({ p: [CHX(i), 2.1, 1.2], t: "Año " + i, c: "ax" });
+  const done = (i) => S.grow * 8 - i * 1.2 >= 1;
+  out.push({ p: [CHX(5) - 2.2, FLUJO.orig[5] * KY - 1, 0.8], t: "Original " + fmtM(FLUJO.orig[5]), when: () => done(5) },
+    { p: [CHX(5) - 2.2, FLUJO.red[5] * KY + 3.3, 0.8], t: "Con reducción " + fmtM(FLUJO.red[5]), c: "big", when: () => done(5) },
+    { p: [CHX(3) + 0.75, FLUJO.red[3] * KY - 1, 0.8], t: "Peor momento " + fmtM(FLUJO.red[3]), when: () => done(3) });
+  return out;
+}
+function tagsDraw() {
+  const st = PASOS[cur], busy = camTweenBusy();
+  const list = busy ? [] : (st.tags === "chart" ? chartTags() : st.tags || []).filter((t) => !t.when || t.when());
+  while (tagPool.length < list.length) { const d = document.createElement("div"); tagRoot.appendChild(d); tagPool.push(d); }
+  tagPool.forEach((d, i) => {
+    const t = list[i]; if (!t) { d.hidden = true; return; }
+    if (d.textContent !== t.t) d.textContent = t.t; d.className = "tg " + (t.c || "");
+    if (t.fix) { d.style.transform = `translate(24px,${Math.max(96, H * 0.14).toFixed(1)}px)`; d.hidden = false; }   // texto narrativo fijo, lejos del panel de datos
+    else d.hidden = !toScreen(d, t.pilot ? [PILOT[0], 12, PILOT[2]] : t.p);
+  });
+}
+const camTweenBusy = () => $("#fade").classList.contains("on");
+let last = 0;
+let fps = 60, fpsT = 0, slow = 0, frames = 0;
+function loop(now) { const raw = (now - last) / 1000 || 0, dt = Math.min(0.5, raw); if (dt) fps = fps * 0.9 + 0.1 / dt; slow = Math.max(slow, raw); frames++;
+  if (document.body.classList.contains("dbg") && (fpsT += dt) > 0.5) { fpsT = 0; $("#read").hidden = false; $("#read").textContent = (frames / 0.5).toFixed(0) + " cuadros/s · peor " + (slow * 1000).toFixed(0) + " ms · "; slow = 0; frames = 0; $("#read").textContent += "" + renderer.info.render.calls + " llamadas · " + (renderer.info.render.triangles / 1000).toFixed(0) + " mil triángulos"; }   // con pocos cuadros por segundo, la animación igual respeta el tiempo real
+  last = now; if (!window.__p3d.hold) step(dt); requestAnimationFrame(loop); }
+function resize() {
+  W = innerWidth; H = innerHeight; renderer.setSize(W, H, false); camera.aspect = W / H;
+  // la escena se centra en el espacio libre entre el guion (izquierda) y los datos (derecha)
+  const cl = document.body.classList, show = W > 820 && !cl.contains("clean") && !cl.contains("noguion");
+  const gl = show ? $("#guion").offsetWidth + 16 : 0, dr = show ? $("#datos").offsetWidth + 16 : 0;
+  FW = Math.max(320, W - gl - dr);
+  const off = (dr - gl) / 2;
+  if (off) camera.setViewOffset(W, H, off, 0, W, H); else camera.clearViewOffset();
+  camera.updateProjectionMatrix();
+}
+function play(on) { playing = on; stepClock = 0; const b = $("#play"); b.textContent = on ? "❚❚" : "▶"; b.setAttribute("aria-pressed", String(on)); if (on && cur === PASOS.length - 1) go(0); }
+
+// ---------- armado ----------
+let PILOT = [0, 0, 0];
+// los modelos de Blender viajan en base64 (.glb.txt) porque el artefacto no sirve .glb
+const gltf = new GLTFLoader(), loadGL = (u) => fetch(u + ".txt").then((r) => { if (!r.ok) throw new Error(u + " " + r.status); return r.text(); })
+  .then((t) => new Promise((res, rej) => gltf.parse(Uint8Array.from(atob(t.trim()), (ch) => ch.charCodeAt(0)).buffer, "", res, rej)));
+try {
+  const [panelGL, edifGL, ciuGL, eqGL] = await Promise.all(["panel", "edificio", "ciudad", "equipos"].map((n) => loadGL(n + ".glb")));
+  buildBuilding(edifGL); buildCables(); buildOld(); buildPanel(panelGL); buildPlans();
+  buildChart(); buildNegocio(); buildRecursos(); buildPedimos(); buildRuta(); buildDevices(eqGL); buildCity(ciuGL);
+} catch (err) { $("#load").textContent = "No se pudo armar el modelo 3D. Recarga la página."; throw err; }
+const dots = $("#dots");
+PASOS.forEach((s, i) => { const b = document.createElement("button"); b.className = "dot" + (i && s.who !== PASOS[i - 1].who ? " gap" : ""); b.type = "button"; b.textContent = i + 1; b.setAttribute("aria-label", "Lámina " + (i + 1) + ": " + s.title + ", presenta " + QUIEN[s.who]); b.title = QUIEN[s.who]; b.onclick = () => go(i); dots.appendChild(b); });
+resize();
+// prepara los materiales de todos los escenarios al cargar: así no hay pausas la primera vez que aparece cada uno
+Object.values(STG).forEach((v) => (v.g.visible = true)); flyTo(VB, 0); renderer.compile(scene, camera); renderer.render(scene, camera);
+applyStage("b"); setExplode(0); go(0, true); requestAnimationFrame(loop);
+document.body.classList.add("ready"); canvas.focus();
+
+addEventListener("resize", resize);
+controls.addEventListener("start", () => { controls.autoRotate = false; autoStopped = true; });
+let down = null;
+canvas.addEventListener("pointerdown", (e) => { down = [e.clientX, e.clientY]; canvas.focus(); });
+canvas.addEventListener("pointerup", (e) => { if (!down) return; const moved = Math.hypot(e.clientX - down[0], e.clientY - down[1]); down = null; if (moved < 6) { const id = hit(e); if (id) select(id); } });
+canvas.addEventListener("pointermove", (e) => { if (!down) canvas.classList.toggle("pick", !!hit(e)); });
+const toggle = (c) => { document.body.classList.toggle(c); resize(); };
+addEventListener("keydown", (e) => {
+  if (e.target.closest && e.target.closest("button") && (e.key === " " || e.key === "Enter")) return;
+  const k = e.key, K = k.toLowerCase();
+  if (["ArrowRight", "PageDown", " "].includes(k)) { e.preventDefault(); go(cur + 1); }
+  else if (["ArrowLeft", "PageUp"].includes(k)) { e.preventDefault(); go(cur - 1); }
+  else if (/^[0-9]$/.test(k)) go(k === "0" ? 9 : +k - 1);
+  else if (k === "Escape") select(null);
+  else if (K === "h") toggle("clean");
+  else if (K === "g") toggle("noguion");
+  else if (K === "p") play(!playing);
+  else if (K === "f") fs();
+  else if (K === "i") document.body.classList.toggle("dbg");
+  else if (PASOS[cur].mode && (K === "d" || K === "n")) { autoMode = false; setMode(K === "d" ? "day" : "night"); }
+});
+$("#prev").onclick = () => go(cur - 1); $("#next").onclick = () => go(cur + 1);
+$("#home").onclick = () => select(null); $("#play").onclick = () => play(!playing);
+document.querySelectorAll("#mode button").forEach((b) => (b.onclick = () => { autoMode = false; setMode(b.dataset.m); }));
+function fs() { try { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => {}); } catch (e) {} }
+$("#fs").onclick = fs;
+// para pruebas: avanzar el tiempo a mano
+window.__p3d = { hold: false, controls, go, step, select, setMode, play, S, get cur() { return cur; }, get stage() { return stage; }, get selected() { return selected; }, get timers() { return timers.length; }, camera, renderer, scene };
+</script>
+
+</body>
+</html>
