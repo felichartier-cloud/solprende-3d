@@ -22,6 +22,10 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--fondo);color:var
 .load{position:fixed;inset:0;display:grid;place-items:center;background:var(--fondo);font:600 18px "Sora",system-ui,sans-serif;transition:opacity .4s;z-index:9;text-align:center;padding:24px}
 body.ready .load{opacity:0;pointer-events:none}
 #labels,#tags{position:fixed;inset:0;pointer-events:none;overflow:hidden}
+#appvid{position:fixed;left:50%;top:45%;transform:translate(-50%,-50%);width:min(56vw,900px);border-radius:16px;box-shadow:0 24px 60px rgba(11,38,80,.35);background:#0B2650;opacity:0;pointer-events:none;transition:opacity .5s;z-index:3}
+#appvid.on{opacity:1}
+#datos.datos{width:auto;padding:14px 18px}
+.logo-panel{display:block;width:200px;height:auto}
 .lb{position:absolute;left:0;top:0;width:0;height:0}
 .lb i{position:absolute;left:-5px;top:-5px;width:10px;height:10px;border-radius:50%;background:var(--noche);box-shadow:0 0 0 3px rgba(255,255,255,.9)}
 .lb s{position:absolute;left:0;top:-1px;height:2px;background:var(--noche);transform-origin:0 50%;opacity:.55}
@@ -175,6 +179,7 @@ button:focus-visible{outline:2px solid var(--sol);outline-offset:2px}
 <div id="labels"></div>
 <div id="tags"></div>
 <div id="fade"></div>
+<video id="appvid" muted playsinline preload="auto" src="app_corto.mp4"></video>
 <aside class="side guion" id="guion" aria-live="polite">
   <div class="who"><b id="ini"></b><span><small>Presenta</small><strong id="who"></strong></span></div>
   <div class="when" id="num"></div>
@@ -938,18 +943,10 @@ const PASOS = [
           <div style="border-color:#22406E"><span>10 %</span><span></span><span class="num" style="color:var(--verde)">VAN +$5,4 M · TIR 34,6 %</span></div>
         </div><p style="font-size:12.5px">Con 10 % para todos los sistemas del plan (80 en 5 años).</p></div>
       <p class="foot">Tarea 8, escala anual, año 1 = 2027. Sensibilidad recalculada en la planilla. A 10 años y con otros supuestos (sin sueldos fijos), el VAN llega a +$72,6 M.</p>` },
-  { stage: "d", who: 2, dur: 41, title: "Modelo de escalamiento: Lean Scaling", sub: "Crecer por etapas, validando antes de acelerar.", view: VD, labels: [], rotate: false,
-    tags: [{ p: [-2.6, 4.7, -1.5], t: "Plataforma: de 40 a 15 horas por edificio", c: "big" }, { p: [2.2, 5.4, 0.6], t: "App: ahorro verificable", c: "big" }],
-    s: {},
-    say: ["Por eso elegimos Lean Scaling: crecer por etapas y acelerar solo cuando cada una cumple sus métricas.", "Blitzscaling no calza: exige mucho capital y crecer aunque se pierda plata; nuestro VAN cae a −$6 millones si las ventas bajan 15 %, y cada venta pasa por una asamblea.", "Lean Scaling sí calza: el capital de los sistemas lo pone el financista y la plataforma baja la venta de 40 a 15 horas.", "Antonia les muestra la hoja de ruta."],
-    data: `<h2>Lean Scaling</h2>
-      <p style="font-size:14px;line-height:1.45">Crecer por etapas, con poco capital propio, y acelerar solo cuando cada etapa cumple sus métricas.</p>
-      <div class="stack">
-        <div class="card" style="border-color:var(--azul);border-width:2px"><h3>Lean Scaling · elegido</h3><p>El financista pone el capital de los sistemas; SolPrende invierte solo $4,8 M. La plataforma baja la venta de 40 a 15 horas por edificio.</p></div>
-        <div class="card"><h3 style="color:var(--ink2)">Blitzscaling · no calza</h3><p>Exige mucho capital para crecer perdiendo plata. Con 15 % menos ventas el VAN cae a −$6,0 M, y cada venta pasa por una asamblea que toma meses.</p></div>
-        <div class="card"><h3 style="color:var(--ink2)">Scaling Up · más adelante</h3><p>Ordenar equipo, procesos y caja de una empresa grande: tiene sentido cuando pasemos el punto de equilibrio de 64 edificios.</p></div>
-      </div>
-      <p class="foot">Evidencia: sensibilidad de la tarea 8 (ventas −15 %), modelo lineal vs. escalable (tarea 4) y punto de equilibrio del dashboard de la tarea 8.</p>` },
+  { stage: "d", who: 2, dur: 30, title: "La app de SolPrende", sub: "Así la usa el comité de administración.", view: VD, labels: [], rotate: false,
+    video: "app_corto.mp4", tags: [], s: {},
+    say: ["Nuestro prototipo es una web que calcula el ahorro y una app para el comité. Aún no lo probamos con comités; esa es nuestra primera etapa."],
+    data: "" },
   { stage: "h", who: 3, dur: 54, title: "Hoja de ruta", sub: "Cuatro etapas, de la validación a 80 edificios.", view: VH, labels: [],
     seq: [{ t: 0, s: {}, d: 1.2, v: VH }, { t: 2.6, s: {}, d: 1.8, v: VHS[0] }, { t: 13, s: {}, d: 1.6, v: VHS[1] }, { t: 22, s: {}, d: 1.6, v: VHS[2] }, { t: 31, s: {}, d: 1.6, v: VHS[3] }, { t: 40, s: {}, d: 2, v: VH }, { t: 46, s: {}, d: 2, v: VHS[4] }],
     tags: [...["Etapa 0 · 2027 S1", "Etapa 1 · 2027", "Etapa 2 · 2028–2029", "Etapa 3 · 2030–2031", "Etapa 4 · 2032"].map((t, i) => ({ p: [HX[i], -0.6, 5.2], t, c: "ax", when: () => stepClock < 2.6 || (stepClock >= 40 && stepClock < 46) })),
@@ -958,7 +955,7 @@ const PASOS = [
       { p: [HX[1], HY[1] + 7.6, 0], t: "2027 · 10 edificios en la RM", c: "big", when: en(14.2, 22) }, { p: [HX[1], HY[1] + 6.4, 0], t: "con 2 o 3 administradoras", when: en(15, 22) },
       { p: [HX[2], HY[2] + 7.6, 0], t: "2028–2029 · 35 edificios", c: "big", when: en(23.2, 31) }, { p: [HX[2], HY[2] + 6.4, 0], t: "con la plataforma funcionando", when: en(24, 31) },
       { p: [HX[3], HY[3] + 7.6, 0], get t() { const n = hCount(); return n + " edificios" + (n >= 64 ? " · sobre el equilibrio (64)" : ""); }, c: "big", when: en(32, 40) },
-      { p: [HX[3], HY[3] + 6.4, 0], t: "2030–2031 · el 1,4 % del SAM", when: en(32.4, 40) },
+      { p: [HX[3], HY[3] + 6.4, 0], t: "2030–2031 · el 0,7 % del SAM", when: en(32.4, 40) },
       ...["Meta: activación 8 % y ≤ $710/Wp", "Meta: CAC ≤ comisión y 15 h", "Meta: margen ≥ 50 %"].map((t, i) => ({ p: [HX[i] + 5, HY[i + 1] + 3.4, 2.6], t, c: "big", when: en(HOPEN[i] - 2.6, HOPEN[i] + 1) })),
       { fix: 1, t: "Solo pasamos de etapa si se cumple su meta", c: "big fx", when: en(40, 46) },
       { p: [HX[4], HY[4] + 7.6, 0], t: "Desde 2032: Valparaíso", c: "big", when: en(47.4, 1e9) }, { p: [HX[4], HY[4] + 6.4, 0], t: "la segunda región en Net Billing", when: en(48, 1e9) }],
@@ -1033,6 +1030,9 @@ const SUB_FLOW = { day: "De día el sol alimenta los bienes comunes y el exceden
 
 // ---------- estado y animación ----------
 const S = { ...DEF, night: 0 };
+// segundos reales de cada lámina al reproducir, según el pitch escrito; la lámina 4 la dice Constanza
+const REAL = [37, 32, 47, 22, 17, 30, 34, 35, 32];
+PASOS.forEach((p, i) => (p.real = REAL[i])); PASOS[3].who = 2;
 let cur = 0, stage = "b", mode = "day", autoMode = true, modeClock = 0, selected = null, camTween = null, clock = 0, stepClock = 0, playing = false, W = 1, H = 1, FW = 1, autoStopped = false, timers = [];
 const tweens = {};
 function animate(k, to, dur) { if (reduce || !dur) { S[k] = to; delete tweens[k]; } else tweens[k] = { from: S[k], to, t: 0, dur }; }
@@ -1104,6 +1104,8 @@ function go(i, instant) {
   if (swap && !instant && !reduce) { const f = $("#fade"); f.classList.add("on"); setTimeout(() => { enter(); requestAnimationFrame(() => f.classList.remove("on")); }, 330); }
   else enter();
   ui();
+  const v = $("#appvid");   // lámina 6: el corto de la app parte desde el inicio
+  if (st.video) { v.currentTime = 0; v.classList.add("on"); v.play().catch(() => {}); } else { v.classList.remove("on"); v.pause(); }
 }
 function ui() {
   const st = PASOS[cur], who = QUIEN[st.who];
@@ -1118,7 +1120,7 @@ function ui() {
     b.onclick = () => select(selected === id ? null : id); return b;
   }));
   rows();
-  const d = $("#datos"); d.innerHTML = st.data; d.scrollTop = 0;
+  const d = $("#datos"); d.innerHTML = '<img src="logo.png" alt="SolPrende" class="logo-panel">'; d.scrollTop = 0;   // sin datos: solo el logo
   requestAnimationFrame(() => requestAnimationFrame(() => {   // los gráficos del panel crecen al entrar
     d.querySelectorAll("[data-h]").forEach((e) => (e.style.height = (e.dataset.h * (innerHeight < 900 ? 0.7 : 1.2)) + "px"));
     d.querySelectorAll("[data-w]").forEach((e) => (e.style.width = Math.max(2, e.dataset.w) + "%"));
@@ -1148,8 +1150,9 @@ function hit(ev) {
   return S.rise < 0.99 || (stage === "p" && S.explode < 0.5) ? null : id;
 }
 function step(dt) {
-  clock += dt; stepClock += dt;
-  timers = timers.filter((q) => (q.t -= dt) > 0 || (q.fn(), false));
+  const spd = playing && PASOS[cur].real ? PASOS[cur].dur / PASOS[cur].real : 1;
+  clock += dt; stepClock += dt * spd;
+  timers = timers.filter((q) => (q.t -= dt * spd) > 0 || (q.fn(), false));
   Object.keys(tweens).forEach((k) => { const w = tweens[k]; w.t = Math.min(1, w.t + dt / w.dur); S[k] = w.from + (w.to - w.from) * (k === "wire" || k === "draw" || k === "grow" ? w.t : ease(w.t)); if (w.t >= 1) delete tweens[k]; });
   if (camTween) {
     const c = camTween; c.t = Math.min(1, c.t + dt / c.dur); const e = ease(c.t);
